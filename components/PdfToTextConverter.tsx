@@ -30,8 +30,13 @@ export function PdfToTextConverter({
       const formData = new FormData();
       formData.append('File', file);
 
+      const apiKey = process.env.NEXT_PUBLIC_CONVERT_API_KEY;
+      if (!apiKey) {
+        throw new Error('ConvertAPI key is not configured');
+      }
+
       const response = await fetch(
-        'https://v2.convertapi.com/convert/pdf/to/txt?auth=secret_KizMbYR2DOGcSQ35',
+        `https://v2.convertapi.com/convert/pdf/to/txt?auth=${apiKey}`,
         {
           method: 'POST',
           body: formData,
