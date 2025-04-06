@@ -5,14 +5,9 @@ import { X, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import Image from 'next/image';
 
 interface PublishTestModalProps {
   isOpen: boolean;
@@ -81,15 +76,29 @@ export function PublishTestModal({
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>Publish Test</DialogTitle>
-        </DialogHeader>
+    <div
+      className="fixed inset-0 z-50 bg-cover bg-center bg-no-repeat flex items-center justify-center p-6"
+      style={{ backgroundImage: "url('/publish-bg.png')" }}
+    >
+      <div className="w-full max-w-lg bg-white/90 backdrop-blur-md border border-yellow-200 rounded-2xl p-6 shadow-xl relative">
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 text-gray-600 hover:text-black"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        <h1 className="font-bold text-[48px] text-center mb-2 font-handdrawn font-love">Egg-cellent!</h1>
+        <p className="text-center text-[20px] mb-6">
+          You’ve completed the quiz. You may now publish your quiz for others to use.
+        </p>
+
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Test Name</Label>
+          <div>
+            <Label htmlFor="name">Test Name<span className="text-red-500">*</span></Label>
             <Input
               id="name"
               value={name}
@@ -99,29 +108,27 @@ export function PublishTestModal({
             />
           </div>
 
-          <div className="space-y-2">
+          <div>
             <Label htmlFor="university">University</Label>
             <Input
               id="university"
               value={university}
               onChange={(e) => setUniversity(e.target.value)}
               placeholder="Enter university name"
-              required
             />
           </div>
 
-          <div className="space-y-2">
+          <div>
             <Label htmlFor="className">Class Name</Label>
             <Input
               id="className"
               value={className}
               onChange={(e) => setClassName(e.target.value)}
               placeholder="Enter class name"
-              required
             />
           </div>
 
-          <div className="space-y-2">
+          <div>
             <Label htmlFor="description">Description (Optional)</Label>
             <Textarea
               id="description"
@@ -132,7 +139,7 @@ export function PublishTestModal({
             />
           </div>
 
-          <div className="space-y-2">
+          <div>
             <Label htmlFor="tags">Tags</Label>
             <div className="flex gap-2">
               <Input
@@ -140,7 +147,7 @@ export function PublishTestModal({
                 value={currentTag}
                 onChange={(e) => setCurrentTag(e.target.value)}
                 placeholder="Add tags"
-                onKeyPress={(e) => {
+                onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
                     handleAddTag();
@@ -177,7 +184,7 @@ export function PublishTestModal({
 
           {error && <p className="text-sm text-red-500">{error}</p>}
 
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-between gap-4 pt-2">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancel
             </Button>
@@ -186,7 +193,11 @@ export function PublishTestModal({
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </div>
+
+      <div className="absolute bottom-6 right-6 hidden sm:block">
+        <Image src="/egg-character.png" alt="Egg character" width={200} height={200} />
+      </div>
+    </div>
   );
 }
