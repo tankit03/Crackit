@@ -39,7 +39,7 @@ export default function Navbar() {
           <Link href="/tests" className="hover:text-yellow-600">
             All Quizzes
           </Link>
-          <Link href="/saved" className="hover:text-yellow-600">
+          <Link href="/saved-test" className="hover:text-yellow-600">
             Saved Quizzes
           </Link>
           <button
