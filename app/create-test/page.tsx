@@ -155,7 +155,7 @@ export default function CreateTestPage() {
 
         setSession(currentSession);
         try {
-          await publishTest(data, currentSession.user.id);
+          await publishTest(data);
           setIsPublishModalOpen(false);
         } catch (error) {
           throw new Error(
@@ -164,7 +164,7 @@ export default function CreateTestPage() {
         }
       } else {
         try {
-          await publishTest(data, session.user.id);
+          await publishTest(data);
           setIsPublishModalOpen(false);
         } catch (error) {
           throw new Error(
