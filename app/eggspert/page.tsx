@@ -35,6 +35,7 @@ export default function EggSpertPage() {
   const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
+  const [numQuestions, setNumQuestions] = useState(10);
   const supabase = createClient();
 
   useEffect(() => {
@@ -79,7 +80,7 @@ export default function EggSpertPage() {
     setError(null);
 
     try {
-      const result = await generateTest(extractedText);
+      const result = await generateTest(extractedText, numQuestions);
       setTestResult(result);
 
       // Store test data in session storage
@@ -203,6 +204,19 @@ export default function EggSpertPage() {
           />
 
           <div className="flex items-center justify-end gap-2 mt-2">
+            <div className="relative">
+              <select
+                value={numQuestions}
+                onChange={(e) => setNumQuestions(Number(e.target.value))}
+                className="p-2 rounded-full border border-gray-300 bg-white text-sm"
+              >
+                <option value="5">5 Questions</option>
+                <option value="10">10 Questions</option>
+                <option value="15">15 Questions</option>
+                <option value="20">20 Questions</option>
+              </select>
+            </div>
+
             <div className="relative">
               <input
                 type="file"

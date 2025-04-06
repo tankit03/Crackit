@@ -10,7 +10,7 @@ interface TestResult {
   questions: Question[];
 }
 
-export async function generateTest(text: string): Promise<TestResult> {
+export async function generateTest(text: string, numQuestions: number = 10): Promise<TestResult> {
   const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
   if (!apiKey) {
     throw new Error('Gemini API key is not configured');
@@ -19,7 +19,7 @@ export async function generateTest(text: string): Promise<TestResult> {
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
-  const prompt = `Generate 10 multiple choice questions based on the following text. 
+  const prompt = `Generate ${numQuestions} multiple choice questions based on the following text. 
   Your response must be a valid JSON object with the following structure:
   {
     "questions": [
