@@ -13,7 +13,7 @@ interface Test {
   user_id: number;
   university_id: number;
   class_id: number;
-  tags: string;
+  tags: number[];
   universities: { name: string };
   classes: { name: string };
 }
@@ -27,18 +27,21 @@ export default function SearchPage() {
         <h1 className="text-3xl font-bold mb-8">Search Tests</h1>
         <SearchBar onResultsChange={setResults} />
       </div>
-      
+
       <div className="w-full max-w-4xl grid gap-4">
         {results.map((test) => (
           <Card key={test.id}>
             <CardHeader>
               <CardTitle>{test.name}</CardTitle>
               <div className="text-sm text-muted-foreground">
-                {format(new Date(test.created_at), 'PPP')} • {test.universities?.name} • {test.classes?.name}
+                {format(new Date(test.created_at), 'PPP')} •{' '}
+                {test.universities?.name} • {test.classes?.name}
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">Tags: {test.tags}</p>
+              <p className="text-muted-foreground">
+                Tags: {test.tags.join(', ')}
+              </p>
             </CardContent>
           </Card>
         ))}
@@ -50,4 +53,4 @@ export default function SearchPage() {
       </div>
     </div>
   );
-} 
+}

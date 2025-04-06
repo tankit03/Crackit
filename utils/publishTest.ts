@@ -81,7 +81,52 @@ export async function publishTest(data: PublishTestData, userId: string) {
       class_id = newClass.id;
     }
 
-    // Finally, insert the test
+    // Process tags first to get all tag IDs
+    const tagIds: number[] = [];
+
+    if (data.tags && data.tags.length > 0) {
+      for (const tagName of data.tags) {
+        try {
+          // Try to find existing tag
+          const { data: existingTags, error: findTagError } = await supabase
+            .from('tags')
+            .select('id')
+            .eq('name', tagName)
+            .maybeSingle();
+
+          if (findTagError) {
+            console.error(`Error finding tag ${tagName}:`, findTagError);
+            continue;
+          }
+
+          let tagId = existingTags?.id;
+
+          // If tag doesn't exist, create it
+          if (!tagId) {
+            const { data: newTag, error: createTagError } = await supabase
+              .from('tags')
+              .insert([{ name: tagName }])
+              .select('id')
+              .single();
+
+            if (createTagError) {
+              console.error(`Error creating tag ${tagName}:`, createTagError);
+              continue;
+            }
+
+            tagId = newTag.id;
+          }
+
+          if (tagId) {
+            tagIds.push(tagId);
+          }
+        } catch (tagError) {
+          console.error(`Error processing tag ${tagName}:`, tagError);
+        }
+      }
+    }
+
+    // Insert the test with tag IDs
     const { error: insertError } = await supabase.from('test').insert([
       {
         name: data.name,
@@ -89,8 +134,8 @@ export async function publishTest(data: PublishTestData, userId: string) {
         user_id: userId,
         university_id: university_id,
         class_id: class_id,
-        tags: data.tags,
         description: data.description,
+        tags: tagIds, // Store tag IDs directly in the test record
       },
     ]);
 
