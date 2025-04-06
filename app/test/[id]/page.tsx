@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -35,7 +35,12 @@ interface UserAnswer {
   selectedOption: number | null;
 }
 
-export default function TestPage({ params }: { params: { id: string } }) {
+export default function TestPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = use(params);
   const router = useRouter();
   const [test, setTest] = useState<Test | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -49,7 +54,8 @@ export default function TestPage({ params }: { params: { id: string } }) {
       try {
         const { data, error: fetchError } = await supabase
           .from('test')
-          .select(`
+          .select(
+            `
             *,
             universities (
               name
@@ -57,8 +63,9 @@ export default function TestPage({ params }: { params: { id: string } }) {
             classes (
               name
             )
-          `)
-          .eq('id', params.id)
+          `
+          )
+          .eq('id', id)
           .single();
 
         if (fetchError) {
@@ -84,7 +91,7 @@ export default function TestPage({ params }: { params: { id: string } }) {
     };
 
     fetchTest();
-  }, [params.id]);
+  }, [id]);
 
   const handleAnswerSelect = (questionIndex: number, optionIndex: number) => {
     if (showResults) return;
@@ -142,7 +149,9 @@ export default function TestPage({ params }: { params: { id: string } }) {
       <div className="container mx-auto py-8">
         <Card className="bg-red-50 dark:bg-red-900/20">
           <CardContent className="pt-6">
-            <p className="text-red-500 dark:text-red-400">{error || 'Test not found'}</p>
+            <p className="text-red-500 dark:text-red-400">
+              {error || 'Test not found'}
+            </p>
             <Button onClick={() => router.push('/tests')} className="mt-4">
               Back to Tests
             </Button>
@@ -157,9 +166,12 @@ export default function TestPage({ params }: { params: { id: string } }) {
       <div className="flex flex-col gap-8">
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-3xl font-bold">{test.name || 'Untitled Test'}</h1>
+            <h1 className="text-3xl font-bold">
+              {test.name || 'Untitled Test'}
+            </h1>
             <div className="text-sm text-muted-foreground mt-2">
-              {test.universities?.name} • {test.classes?.name} • {formatDate(test.created_at)}
+              {test.universities?.name} • {test.classes?.name} •{' '}
+              {formatDate(test.created_at)}
             </div>
           </div>
           <Button variant="outline" onClick={() => router.push('/tests')}>
@@ -195,12 +207,13 @@ export default function TestPage({ params }: { params: { id: string } }) {
                           showResults
                             ? optionIndex === question.correctAnswer
                               ? 'bg-green-100 dark:bg-green-900/30'
-                              : userAnswers[index]?.selectedOption === optionIndex
-                              ? 'bg-red-100 dark:bg-red-900/30'
-                              : 'bg-gray-50 dark:bg-gray-800'
+                              : userAnswers[index]?.selectedOption ===
+                                  optionIndex
+                                ? 'bg-red-100 dark:bg-red-900/30'
+                                : 'bg-gray-50 dark:bg-gray-800'
                             : userAnswers[index]?.selectedOption === optionIndex
-                            ? 'bg-blue-100 dark:bg-blue-900/30'
-                            : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
+                              ? 'bg-blue-100 dark:bg-blue-900/30'
+                              : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
                         }`}
                       >
                         {String.fromCharCode(65 + optionIndex)}. {option}
@@ -214,7 +227,9 @@ export default function TestPage({ params }: { params: { id: string } }) {
                 {!showResults ? (
                   <Button
                     onClick={handleSubmitTest}
-                    disabled={!userAnswers.every((a) => a.selectedOption !== null)}
+                    disabled={
+                      !userAnswers.every((a) => a.selectedOption !== null)
+                    }
                     className="w-full"
                   >
                     Submit Test
@@ -226,7 +241,10 @@ export default function TestPage({ params }: { params: { id: string } }) {
                         Score: {calculateScore()} / {test.questions.length}
                       </p>
                       <p className="text-muted-foreground">
-                        {Math.round((calculateScore() / test.questions.length) * 100)}%
+                        {Math.round(
+                          (calculateScore() / test.questions.length) * 100
+                        )}
+                        %
                       </p>
                     </div>
                     <Button onClick={handleRetakeTest} className="w-full">
@@ -241,4 +259,4 @@ export default function TestPage({ params }: { params: { id: string } }) {
       </div>
     </div>
   );
-} 
+}
