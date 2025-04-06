@@ -11,6 +11,7 @@ import { AverageRating } from '@/components/AverageRating';
 import { use } from 'react';
 import { BookmarkIcon } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import Navbar from '@/components/navbar';
 
 interface Question {
   question: string;
@@ -19,7 +20,7 @@ interface Question {
 }
 
 interface Review {
-  id: number;
+  id: string;
   rating: number;
   comment: string;
   created_at: string;
@@ -258,32 +259,38 @@ export default function TestPage({
         // Fetch user names for the reviews
         let reviewsWithUsers: Review[] = [];
         if (reviewsData && reviewsData.length > 0) {
-          const userIds = reviewsData.map((review) => review.user_id);
-          const { data: userData, error: userError } = await supabase
-            .from('profiles')
-            .select('id, full_name')
-            .in('id', userIds);
+          // For each review, we'll use the current user's metadata if it's their review,
+          // otherwise we'll just show "User" with the first part of their email
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
 
-          if (userError) {
-            console.error('Failed to fetch user data:', userError);
-          }
-
-          // Combine review data with user data
           reviewsWithUsers = reviewsData.map((review) => {
-            const user = userData?.find((user) => user.id === review.user_id);
-            const reviewObj: Review = {
-              id: Number(review.id),
+            let displayName = 'User';
+
+            // If this is the current user's review, use their display name
+            if (session?.user && review.user_id === session.user.id) {
+              displayName =
+                session.user.user_metadata?.display_name ||
+                session.user.email?.split('@')[0] ||
+                'User';
+            } else {
+              // For other users, just use a generic name
+              displayName = `User ${review.user_id.slice(0, 4)}`;
+            }
+
+            return {
+              id: String(review.id),
               rating: Number(review.rating),
               comment: String(review.comment),
               created_at: String(review.created_at),
               user_id: String(review.user_id),
               profiles: [
                 {
-                  full_name: user?.full_name || 'Anonymous',
+                  full_name: displayName,
                 },
               ],
             };
-            return reviewObj;
           });
         }
 
@@ -377,7 +384,8 @@ export default function TestPage({
       } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      const { data: review, error } = await supabase
+      // First, insert the review
+      const { data: reviewData, error: reviewError } = await supabase
         .from('test-reviews')
         .insert([
           {
@@ -387,47 +395,54 @@ export default function TestPage({
             comment,
           },
         ])
-        .select(
-          `
-          id,
-          rating,
-          comment,
-          created_at,
-          user_id,
-          profiles (
-            id,
-            full_name
-          )
-        `
-        )
+        .select('id, rating, comment, created_at, user_id')
         .single();
 
-      if (error) throw error;
+      if (reviewError) throw reviewError;
 
+      // Create the review object with the user's display name from auth
+      const newReview: Review = {
+        id: String(reviewData.id),
+        rating: reviewData.rating,
+        comment: reviewData.comment,
+        created_at: reviewData.created_at,
+        user_id: reviewData.user_id,
+        profiles: [
+          {
+            full_name:
+              user.user_metadata?.display_name ||
+              user.email?.split('@')[0] ||
+              'Anonymous',
+          },
+        ],
+      };
+
+      // Update the test state with the new review
       setTest((prev) =>
         prev
           ? {
               ...prev,
-              reviews: [
-                ...prev.reviews,
-                {
-                  id: review.id,
-                  rating: review.rating,
-                  comment: review.comment,
-                  created_at: review.created_at,
-                  user_id: review.user_id,
-                  profiles: {
-                    full_name: review.profiles[0].full_name,
-                  },
-                },
-              ],
+              reviews: [...prev.reviews, newReview],
             }
           : null
       );
 
       setReviewSubmitted(true);
+
+      // Show success message
+      toast({
+        title: 'Success',
+        description: 'Your review has been submitted successfully',
+        variant: 'default',
+      });
     } catch (error) {
       console.error('Error submitting review:', error);
+      // Show error message
+      toast({
+        title: 'Error',
+        description: 'Failed to submit review. Please try again.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -471,6 +486,7 @@ export default function TestPage({
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Navbar />
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Test Header */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-8 relative">
@@ -668,22 +684,54 @@ export default function TestPage({
                               {question.question}
                             </p>
                             <div className="space-y-2">
-                              <p
-                                className={`text-sm ${isCorrect ? 'text-green-600' : 'text-gray-600'}`}
-                              >
-                                Correct Answer:{' '}
-                                {question.options[question.correctAnswer]}
-                              </p>
-                              {!isCorrect && (
-                                <p className="text-sm text-red-600">
-                                  Your Answer:{' '}
-                                  {
-                                    question.options[
-                                      userAnswers[index]?.selectedOption || 0
-                                    ]
-                                  }
-                                </p>
-                              )}
+                              {question.options.map((option, optionIndex) => {
+                                const isSelected =
+                                  userAnswers[index]?.selectedOption ===
+                                  optionIndex;
+                                const isCorrectAnswer =
+                                  question.correctAnswer === optionIndex;
+
+                                return (
+                                  <div
+                                    key={optionIndex}
+                                    className={`p-3 rounded-lg border ${
+                                      isCorrectAnswer
+                                        ? 'bg-green-50 border-green-200'
+                                        : isSelected && !isCorrect
+                                          ? 'bg-red-50 border-red-200'
+                                          : 'bg-gray-50 border-gray-200'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <div
+                                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                                          isCorrectAnswer
+                                            ? 'border-green-500 bg-green-500'
+                                            : isSelected && !isCorrect
+                                              ? 'border-red-500 bg-red-500'
+                                              : 'border-gray-300'
+                                        }`}
+                                      >
+                                        {(isCorrectAnswer ||
+                                          (isSelected && !isCorrect)) && (
+                                          <div className="w-2 h-2 bg-white rounded-full" />
+                                        )}
+                                      </div>
+                                      <span
+                                        className={`${
+                                          isCorrectAnswer
+                                            ? 'text-green-700 font-medium'
+                                            : isSelected && !isCorrect
+                                              ? 'text-red-700 font-medium'
+                                              : 'text-gray-600'
+                                        }`}
+                                      >
+                                        {option}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         </div>
