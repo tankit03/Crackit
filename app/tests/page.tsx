@@ -465,51 +465,38 @@ export default function TestsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar/>
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center">
-              <h1 className="text-xl md:text-2xl font-semibold text-gray-900">
-                Let's Learn, <span className="text-[#F2C76E]">{userName}</span>
-              </h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setIsMobileFiltersOpen(true)}
-                className="md:hidden p-2 text-gray-500 hover:text-gray-700"
-              >
-                <Filter size={20} />
-              </button>
-              <Link href="/saved-test">
-                <Button
-                  variant="outline"
-                  className="bg-[#F2C76E] text-white border-none hover:bg-[#E5B85B] transition-colors"
-                >
-                  Saved Quizzes
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
-
+      <Navbar />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Search Bar */}
         <div className="mb-8">
-          <div className="relative">
-            <Input
-              type="text"
-              placeholder="Quiz Name"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-full border-2 border-[#F2C76E] focus:ring-2 focus:ring-[#F2C76E] focus:border-transparent"
-            />
-            <Search
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#F2C76E]"
-              size={20}
-            />
+          <div className="relative flex items-center gap-2">
+            <div className="flex-1 relative">
+              <Input
+                type="text"
+                placeholder="Quiz Name"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 rounded-full border-2 border-[#F2C76E] focus:ring-2 focus:ring-[#F2C76E] focus:border-transparent"
+              />
+              <Search
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#F2C76E]"
+                size={20}
+              />
+            </div>
+            <button
+              onClick={() => setIsMobileFiltersOpen(true)}
+              className="md:hidden p-2 text-gray-500 hover:text-gray-700 bg-white rounded-full shadow-sm"
+            >
+              <Filter size={20} />
+            </button>
+            <Link href="/saved-test">
+              <Button
+                variant="outline"
+                className="bg-[#F2C76E] text-white border-none hover:bg-[#E5B85B] transition-colors whitespace-nowrap"
+              >
+                Saved Quizzes
+              </Button>
+            </Link>
           </div>
         </div>
 
@@ -524,15 +511,27 @@ export default function TestsPage() {
             <div className="fixed inset-0 bg-black bg-opacity-50 z-50 md:hidden">
               <div className="absolute right-0 top-0 h-full w-80 bg-white p-6 overflow-y-auto">
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-lg font-semibold">Filters</h2>
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Filters
+                  </h2>
                   <button
                     onClick={() => setIsMobileFiltersOpen(false)}
-                    className="p-2 hover:bg-gray-100 rounded-full"
+                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
                   >
-                    <X size={20} />
+                    <X size={20} className="text-gray-500" />
                   </button>
                 </div>
-                <FiltersContent />
+                <div className="space-y-6">
+                  <FiltersContent />
+                  <div className="pt-4 border-t">
+                    <Button
+                      onClick={() => setIsMobileFiltersOpen(false)}
+                      className="w-full bg-[#F2C76E] text-white hover:bg-[#E5B85B] transition-colors"
+                    >
+                      Apply Filters
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
           )}
