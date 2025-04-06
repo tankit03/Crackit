@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { TestReviewForm } from '@/components/TestReviewForm';
 import { ReviewsList } from '@/components/ReviewsList';
 import { AverageRating } from '@/components/AverageRating';
+import { use } from 'react';
 
 interface Question {
   question: string;
@@ -63,6 +64,7 @@ export default function TestPage({
   const [userAnswers, setUserAnswers] = useState<UserAnswer[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
+  const [isCreator, setIsCreator] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
@@ -150,6 +152,19 @@ export default function TestPage({
     fetchTest();
   }, [id]);
 
+  useEffect(() => {
+    const checkUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user && test) {
+        setIsCreator(user.id === test.user_id);
+      }
+    };
+
+    checkUser();
+  }, [test]);
+
   const handleAnswerSelect = (questionIndex: number, optionIndex: number) => {
     if (showResults) return;
 
@@ -186,47 +201,66 @@ export default function TestPage({
   };
 
   const handleReviewSubmit = async (rating: number, comment: string) => {
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
+    if (!test) return;
 
-    if (userError || !user) {
-      throw new Error('You must be logged in to submit a review');
-    }
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
 
-    const { error: submitError } = await supabase.from('test-reviews').insert([
-      {
-        test_id: test?.id,
-        user_id: user.id,
-        rating,
-        comment,
-      },
-    ]);
-
-    if (submitError) {
-      throw new Error('Failed to submit review');
-    }
-
-    // Fetch updated reviews after submission
-    const { data: updatedReviews, error: reviewsError } = await supabase
-      .from('test-reviews')
-      .select(
+      const { data: review, error } = await supabase
+        .from('test-reviews')
+        .insert([
+          {
+            test_id: test.id,
+            user_id: user.id,
+            rating,
+            comment,
+          },
+        ])
+        .select(
+          `
+          id,
+          rating,
+          comment,
+          created_at,
+          user_id,
+          profiles (
+            id,
+            full_name
+          )
         `
-        id,
-        rating,
-        comment,
-        created_at,
-        user_id
-      `
-      )
-      .eq('test_id', test?.id);
+        )
+        .single();
 
-    if (!reviewsError && updatedReviews) {
-      setTest((prev) => (prev ? { ...prev, reviews: updatedReviews } : null));
+      if (error) throw error;
+
+      setTest((prev) =>
+        prev
+          ? {
+              ...prev,
+              reviews: [
+                ...prev.reviews,
+                {
+                  id: review.id,
+                  rating: review.rating,
+                  comment: review.comment,
+                  created_at: review.created_at,
+                  user_id: review.user_id,
+                  profiles: {
+                    full_name: review.profiles[0].full_name,
+                  },
+                },
+              ],
+            }
+          : null
+      );
+
+      setReviewSubmitted(true);
+    } catch (error) {
+      console.error('Error submitting review:', error);
     }
-
-    setReviewSubmitted(true);
   };
 
   const formatDate = (dateString: string) => {
@@ -273,9 +307,19 @@ export default function TestPage({
             </p>
             <AverageRating reviews={test.reviews} />
           </div>
-          <Button variant="outline" onClick={() => router.push('/tests')}>
-            Back to Tests
-          </Button>
+          <div className="flex gap-2">
+            {isCreator && (
+              <Button
+                variant="outline"
+                onClick={() => router.push(`/test/edit/${test.id}`)}
+              >
+                Edit Test
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => router.push('/tests')}>
+              Back to Tests
+            </Button>
+          </div>
         </div>
 
         {test.description && (
