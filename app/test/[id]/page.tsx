@@ -5,11 +5,25 @@ import { createClient } from '@/utils/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
+import { TestReviewForm } from '@/components/TestReviewForm';
+import { ReviewsList } from '@/components/ReviewsList';
+import { AverageRating } from '@/components/AverageRating';
 
 interface Question {
   question: string;
   options: string[];
   correctAnswer: number;
+}
+
+interface Review {
+  id: string;
+  rating: number;
+  comment: string;
+  created_at: string;
+  user_id: string;
+  profiles: {
+    full_name: string;
+  };
 }
 
 interface Test {
@@ -28,6 +42,7 @@ interface Test {
   classes: {
     name: string;
   };
+  reviews: Review[];
 }
 
 interface UserAnswer {
@@ -47,12 +62,14 @@ export default function TestPage({
   const [error, setError] = useState<string | null>(null);
   const [userAnswers, setUserAnswers] = useState<UserAnswer[]>([]);
   const [showResults, setShowResults] = useState(false);
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
     const fetchTest = async () => {
       try {
-        const { data, error: fetchError } = await supabase
+        // First fetch the test data
+        const { data: testData, error: testError } = await supabase
           .from('test')
           .select(
             `
@@ -68,21 +85,61 @@ export default function TestPage({
           .eq('id', id)
           .single();
 
-        if (fetchError) {
+        if (testError) {
           throw new Error('Failed to fetch test');
         }
 
-        if (!data) {
+        if (!testData) {
           throw new Error('Test not found');
         }
 
-        setTest(data);
+        // Then fetch the reviews
+        const { data: reviewsData, error: reviewsError } = await supabase
+          .from('test-reviews')
+          .select(
+            `
+            id,
+            rating,
+            comment,
+            created_at,
+            user_id
+          `
+          )
+          .eq('test_id', id);
+
+        if (reviewsError) {
+          console.error('Failed to fetch reviews:', reviewsError);
+        } else {
+          console.log('Fetched reviews:', reviewsData);
+        }
+
+        // Combine the data
+        const combinedData = {
+          ...testData,
+          reviews: reviewsData || [],
+        };
+
+        console.log('Combined data:', combinedData);
+
+        setTest(combinedData);
         setUserAnswers(
-          data.questions.map((_: Question, index: number) => ({
+          testData.questions.map((_: Question, index: number) => ({
             questionIndex: index,
             selectedOption: null,
           }))
         );
+
+        // Check if user has already reviewed this test
+        const { data: reviewData, error: reviewError } = await supabase
+          .from('test-reviews')
+          .select('id')
+          .eq('test_id', id)
+          .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+          .maybeSingle();
+
+        if (!reviewError && reviewData) {
+          setReviewSubmitted(true);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
@@ -128,6 +185,50 @@ export default function TestPage({
     setShowResults(false);
   };
 
+  const handleReviewSubmit = async (rating: number, comment: string) => {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      throw new Error('You must be logged in to submit a review');
+    }
+
+    const { error: submitError } = await supabase.from('test-reviews').insert([
+      {
+        test_id: test?.id,
+        user_id: user.id,
+        rating,
+        comment,
+      },
+    ]);
+
+    if (submitError) {
+      throw new Error('Failed to submit review');
+    }
+
+    // Fetch updated reviews after submission
+    const { data: updatedReviews, error: reviewsError } = await supabase
+      .from('test-reviews')
+      .select(
+        `
+        id,
+        rating,
+        comment,
+        created_at,
+        user_id
+      `
+      )
+      .eq('test_id', test?.id);
+
+    if (!reviewsError && updatedReviews) {
+      setTest((prev) => (prev ? { ...prev, reviews: updatedReviews } : null));
+    }
+
+    setReviewSubmitted(true);
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -166,13 +267,11 @@ export default function TestPage({
       <div className="flex flex-col gap-8">
         <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-3xl font-bold">
-              {test.name || 'Untitled Test'}
-            </h1>
-            <div className="text-sm text-muted-foreground mt-2">
-              {test.universities?.name} • {test.classes?.name} •{' '}
-              {formatDate(test.created_at)}
-            </div>
+            <h1 className="text-3xl font-bold">{test.name}</h1>
+            <p className="text-muted-foreground">
+              {test.universities.name} • {test.classes.name}
+            </p>
+            <AverageRating reviews={test.reviews} />
           </div>
           <Button variant="outline" onClick={() => router.push('/tests')}>
             Back to Tests
@@ -256,6 +355,28 @@ export default function TestPage({
             </div>
           </CardContent>
         </Card>
+
+        {/* Show reviews regardless of test completion */}
+        {test.reviews && test.reviews.length > 0 && (
+          <ReviewsList reviews={test.reviews} />
+        )}
+
+        {/* Show review form only after completing the test */}
+        {showResults && !reviewSubmitted && (
+          <TestReviewForm
+            testId={test.id}
+            onReviewSubmit={handleReviewSubmit}
+          />
+        )}
+        {reviewSubmitted && (
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-center text-muted-foreground">
+                Thank you for your review!
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

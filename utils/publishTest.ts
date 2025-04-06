@@ -9,10 +9,20 @@ export interface PublishTestData {
   questions: any[];
 }
 
-export async function publishTest(data: PublishTestData, userId: string) {
-  const supabase = createClient();
-
+export async function publishTest(data: PublishTestData) {
   try {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      throw new Error('User must be authenticated to publish a test');
+    }
+
+    let universityId: number;
+    let classId: number;
+
     // First, try to find the university
     const { data: universities, error: universityError } = await supabase
       .from('universities')
@@ -24,9 +34,9 @@ export async function publishTest(data: PublishTestData, userId: string) {
       throw new Error(`Error finding university: ${universityError.message}`);
     }
 
-    let university_id = universities?.id;
+    universityId = universities?.id;
 
-    if (!university_id) {
+    if (!universityId) {
       // Create new university
       const { data: newUniversity, error: createUniversityError } =
         await supabase
@@ -45,40 +55,38 @@ export async function publishTest(data: PublishTestData, userId: string) {
         );
       }
 
-      university_id = newUniversity.id;
+      universityId = newUniversity.id;
     }
 
-    // Then, try to find the class
-    const { data: classes, error: classError } = await supabase
+    // Find or create class
+    const { data: classData, error: classError } = await supabase
       .from('classes')
       .select('id')
-      .ilike('name', data.className)
-      .eq('university_id', university_id)
+      .eq('name', data.className)
+      .eq('university_id', universityId)
       .single();
 
-    if (classError && classError.code !== 'PGRST116') {
-      throw new Error(`Error finding class: ${classError.message}`);
-    }
-
-    let class_id = classes?.id;
-
-    if (!class_id) {
+    if (classError) {
+      console.error('Error finding class:', classError);
+      // Create class if it doesn't exist
       const { data: newClass, error: createClassError } = await supabase
         .from('classes')
         .insert([
           {
             name: data.className,
-            university_id: university_id,
+            university_id: universityId,
           },
         ])
-        .select('id')
+        .select()
         .single();
 
       if (createClassError) {
-        throw new Error(`Error creating class: ${createClassError.message}`);
+        throw new Error(`Failed to create class: ${createClassError.message}`);
       }
 
-      class_id = newClass.id;
+      classId = newClass.id;
+    } else {
+      classId = classData.id;
     }
 
     // Process tags first to get all tag IDs
@@ -131,9 +139,9 @@ export async function publishTest(data: PublishTestData, userId: string) {
       {
         name: data.name,
         questions: data.questions,
-        user_id: userId,
-        university_id: university_id,
-        class_id: class_id,
+        user_id: user.id,
+        university_id: universityId,
+        class_id: classId,
         description: data.description,
         tags: tagIds, // Store tag IDs directly in the test record
       },
