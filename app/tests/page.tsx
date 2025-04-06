@@ -47,6 +47,9 @@ export default function TestsPage() {
   const [universities, setUniversities] = useState<{ id: number; name: string }[]>([]);
   const [filteredUniversities, setFilteredUniversities] = useState<{ id: number; name: string }[]>([]);
   const [selectedUniversity, setSelectedUniversity] = useState<string>('all');
+  const [classes, setClasses] = useState<{ id: number; name: string }[]>([]);
+  const [filteredClasses, setFilteredClasses] = useState<{ id: number; name: string }[]>([]);
+  const [selectedClass, setSelectedClass] = useState<string>('all');
   const [availableTags, setAvailableTags] = useState<{ id: number; name: string }[]>([]);
   const [filteredTags, setFilteredTags] = useState<{ id: number; name: string }[]>([]);
   const [selectedTag, setSelectedTag] = useState<string>('all');
@@ -67,6 +70,22 @@ export default function TestsPage() {
 
     setUniversities(data || []);
     setFilteredUniversities(data || []);
+  };
+
+  // Fetch classes
+  const fetchClasses = async () => {
+    const { data, error } = await supabase
+      .from('classes')
+      .select('id, name')
+      .order('name');
+
+    if (error) {
+      console.error('Error fetching classes:', error);
+      return;
+    }
+
+    setClasses(data || []);
+    setFilteredClasses(data || []);
   };
 
   // Fetch all tags
@@ -107,31 +126,53 @@ export default function TestsPage() {
           )
         `);
 
-      // Apply filters
+      // Build filter conditions
       if (searchTerm) {
-        query = query.ilike('name', `%${searchTerm}%`);
+        // Search across multiple fields using separate conditions
+        query = query.or(`name.ilike.%${searchTerm}%`);
       }
 
+      // Apply additional filters with AND logic
       if (selectedUniversity && selectedUniversity !== 'all') {
         query = query.eq('university_id', selectedUniversity);
       }
 
+      if (selectedClass && selectedClass !== 'all') {
+        query = query.eq('class_id', selectedClass);
+      }
+
       if (selectedTag && selectedTag !== 'all') {
-        // Use LIKE to match the tag ID in the JSON array string
         query = query.like('tags', `%${selectedTag}%`);
       }
 
       // Apply sorting
       query = query.order('created_at', { ascending: sortBy === 'oldest' });
 
-      const { data, error: searchError } = await query;
+      const { data: nameResults, error: nameError } = await query;
 
-      if (searchError) {
-        console.error('Search error:', searchError);
-        throw new Error(searchError.message);
+      if (nameError) {
+        console.error('Search error:', nameError);
+        throw new Error(nameError.message);
       }
 
-      setTests(data || []);
+      // If searching by term, filter by all fields client-side
+      let filteredData = nameResults || [];
+      if (searchTerm && filteredData.length >= 0) {
+        const searchLower = searchTerm.toLowerCase();
+        filteredData = filteredData.filter(test => {
+          const testTags = test.tags ? parseTagIds(test.tags) : [];
+          return (
+            test.name.toLowerCase().includes(searchLower) ||
+            test.universities?.name.toLowerCase().includes(searchLower) ||
+            test.classes?.name.toLowerCase().includes(searchLower) ||
+            testTags.some(tagId => 
+              tagMap[tagId]?.toLowerCase().includes(searchLower)
+            )
+          );
+        });
+      }
+
+      setTests(filteredData);
     } catch (err) {
       console.error('Error in searchTests:', err);
       setError(err instanceof Error ? err.message : 'An error occurred while searching');
@@ -143,7 +184,12 @@ export default function TestsPage() {
   // Parse tags string to array
   const parseTagIds = (tagsString: string): number[] => {
     try {
-      return JSON.parse(tagsString);
+      if (!tagsString || tagsString.trim() === '') {
+        return [];
+      }
+      // Handle both string array format and direct array format
+      const parsed = typeof tagsString === 'string' ? JSON.parse(tagsString) : tagsString;
+      return Array.isArray(parsed) ? parsed : [];
     } catch (e) {
       console.error('Error parsing tags:', e);
       return [];
@@ -153,6 +199,7 @@ export default function TestsPage() {
   // Initial load
   useEffect(() => {
     fetchUniversities();
+    fetchClasses();
     fetchTags();
     searchTests();
   }, []);
@@ -164,7 +211,7 @@ export default function TestsPage() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchTerm, selectedUniversity, selectedTag, sortBy]);
+  }, [searchTerm, selectedUniversity, selectedClass, selectedTag, sortBy]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -181,7 +228,7 @@ export default function TestsPage() {
           <h1 className="text-3xl font-bold">Published Tests</h1>
           
           {/* Search and Filters */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
             <div className="relative col-span-full md:col-span-2">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
@@ -219,6 +266,38 @@ export default function TestsPage() {
                 {filteredUniversities.map((uni) => (
                   <SelectItem key={uni.id} value={uni.id.toString()}>
                     {uni.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={selectedClass}
+              onValueChange={setSelectedClass}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by Class" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Classes</SelectItem>
+                <div className="relative">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search classes..."
+                    className="pl-8 h-9 mb-2"
+                    onChange={(e) => {
+                      const input = e.target.value.toLowerCase();
+                      setFilteredClasses(
+                        classes.filter(cls =>
+                          cls.name.toLowerCase().includes(input)
+                        )
+                      );
+                    }}
+                  />
+                </div>
+                {filteredClasses.map((cls) => (
+                  <SelectItem key={cls.id} value={cls.id.toString()}>
+                    {cls.name}
                   </SelectItem>
                 ))}
               </SelectContent>
