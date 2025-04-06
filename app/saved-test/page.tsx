@@ -9,6 +9,17 @@ import { toast } from 'sonner';
 import Navbar from '@/components/navbar';
 import Link from 'next/link';
 
+interface Test {
+  id: number;
+  name: string;
+  created_at: string;
+  tags: string | number[];
+}
+
+interface SavedTest {
+  test: Test;
+}
+
 // Tag color mapping with a diverse color palette
 const TAG_COLORS: { [key: string]: string } = {
   'Algorithm': 'bg-[#60A5FA] text-white', // Bright blue
@@ -38,7 +49,7 @@ export default function SavedTestPage() {
   const router   = useRouter();
 
   const [session, setSession] = useState<Session | null>(null);
-  const [tests,   setTests]   = useState<any[]>([]);
+  const [tests,   setTests]   = useState<Test[]>([]);
   const [tagMap,  setTagMap]  = useState<{[key: number]: string}>({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -48,7 +59,7 @@ export default function SavedTestPage() {
   // Filter tests based on selected tags
   const filteredTests = tests.filter(test => {
     if (selectedTags.size === 0) return true;
-    return test.tags?.some((tagId: number) => selectedTags.has(tagId));
+    return Array.isArray(test.tags) && test.tags.some((tagId: number) => selectedTags.has(tagId));
   });
 
   // Filter available tags based on search query
@@ -94,7 +105,7 @@ export default function SavedTestPage() {
         console.error('Supabase error →', error);
       } else {
         // Process each test to convert tags string to array
-        const processedTests = data?.map(r => {
+        const processedTests = (data as SavedTest[])?.map(r => {
           const test = {...r.test};
           
           // Convert tags string to array if it exists and is a string
@@ -105,7 +116,7 @@ export default function SavedTestPage() {
               console.error('Error parsing tags for test', test.id, e);
               test.tags = [];
             }
-          } else if (!test.tags || test.tags.trim() === '') {
+          } else if (!test.tags || test.tags === '') {
             test.tags = [];
           }
           
@@ -152,8 +163,8 @@ export default function SavedTestPage() {
   };
 
   const clearFilters = () => {
-    setSelectedTags(new Set());
     setSearchQuery('');
+    setSelectedTags(new Set());
   };
 
   if (loading) return <p className="p-8">Loading…</p>;
