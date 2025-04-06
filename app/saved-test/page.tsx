@@ -16,12 +16,17 @@ interface Test {
   tags: string | number[];
 }
 
+interface Tag {
+  id: number;
+  name: string;
+}
+
 interface SupabaseTestResponse {
   test: Test;
 }
 
 // Tag color mapping with a diverse color palette
-const TAG_COLORS: { [key: string]: string } = {
+const TAG_COLORS: Record<string, string> = {
   'Algorithm': 'bg-[#60A5FA] text-white', // Bright blue
   'Design': 'bg-[#F472B6] text-white', // Pink
   'Machine Learning': 'bg-[#34D399] text-white', // Emerald
@@ -46,15 +51,15 @@ const getTagColor = (tagName: string): string => {
 
 export default function SavedTestPage() {
   const supabase = createClient();
-  const router   = useRouter();
+  const router = useRouter();
 
   const [session, setSession] = useState<Session | null>(null);
-  const [tests,   setTests]   = useState<Test[]>([]);
-  const [tagMap,  setTagMap]  = useState<{[key: number]: string}>({});
+  const [tests, setTests] = useState<Test[]>([]);
+  const [tagMap, setTagMap] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<Set<number>>(new Set());
-  const [availableTags, setAvailableTags] = useState<{id: number, name: string}[]>([]);
+  const [availableTags, setAvailableTags] = useState<Tag[]>([]);
 
   // Filter tests based on selected tags
   const filteredTests = tests.filter(test => {
@@ -68,45 +73,51 @@ export default function SavedTestPage() {
   );
 
   useEffect(() => {
-    (async () => {
-      /* 1️⃣  Auth check */
-      const { data: { session: s } } = await supabase.auth.getSession();
-      if (!s) { router.push('/sign-in'); return; }
-      setSession(s);
+    const fetchData = async () => {
+      try {
+        /* 1️⃣  Auth check */
+        const { data: { session: s } } = await supabase.auth.getSession();
+        if (!s) { 
+          router.push('/sign-in'); 
+          return; 
+        }
+        setSession(s);
 
-      /* 2️⃣  Fetch all tags to create a mapping */
-      const { data: tagData } = await supabase
-        .from('tags')
-        .select('id, name');
-      
-      // Create a mapping of tag ids to tag names
-      const tagMapping = tagData?.reduce((acc, tag) => {
-        acc[tag.id] = tag.name;
-        return acc;
-      }, {} as {[key: number]: string}) || {};
-      
-      setTagMap(tagMapping);
-      setAvailableTags(tagData || []);
+        /* 2️⃣  Fetch all tags to create a mapping */
+        const { data: tagData } = await supabase
+          .from('tags')
+          .select('id, name');
+        
+        // Create a mapping of tag ids to tag names
+        const tagMapping = tagData?.reduce((acc, tag) => {
+          acc[tag.id] = tag.name;
+          return acc;
+        }, {} as Record<number, string>) || {};
+        
+        setTagMap(tagMapping);
+        setAvailableTags(tagData || []);
 
-      /* 3️⃣  Query the saved tests */
-      const { data, error } = await supabase
-        .from('user-saved-tests')
-        .select(`
-          test (
-            id,
-            name,
-            created_at,
-            tags
-          )
-        `)
-        .eq('user_id', s.user.id);
+        /* 3️⃣  Query the saved tests */
+        const { data, error } = await supabase
+          .from('user-saved-tests')
+          .select(`
+            test (
+              id,
+              name,
+              created_at,
+              tags
+            )
+          `)
+          .eq('user_id', s.user.id);
 
-      if (error) {
-        console.error('Supabase error →', error);
-      } else {
+        if (error) {
+          console.error('Supabase error →', error);
+          return;
+        }
+
         // Process each test to convert tags string to array
-        const processedTests = (data as SupabaseTestResponse[])?.map(r => {
-          const test = {...r.test};
+        const processedTests = (data as unknown as SupabaseTestResponse[])?.map(r => {
+          const test = { ...r.test };
           
           // Convert tags string to array if it exists and is a string
           if (test.tags && typeof test.tags === 'string' && test.tags.trim() !== '') {
@@ -124,10 +135,14 @@ export default function SavedTestPage() {
         }) ?? [];
         
         setTests(processedTests);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
       }
+    };
 
-      setLoading(false);
-    })();
+    fetchData();
   }, [router, supabase]);
 
   const handleUnsave = async (testId: number) => {
@@ -167,7 +182,16 @@ export default function SavedTestPage() {
     setSelectedTags(new Set());
   };
 
-  if (loading) return <p className="p-8">Loading…</p>;
+  if (loading) {
+    return (
+      <div className="min-h-screen">
+        <Navbar />
+        <main className="container mx-auto px-4 py-8 mt-16">
+          <p className="p-8">Loading…</p>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">
@@ -242,7 +266,7 @@ export default function SavedTestPage() {
                     </button>
                     <h2 className="font-semibold text-base mb-2 text-gray-800 pr-6 line-clamp-2">{t.name}</h2>
                     <div className="flex flex-wrap gap-1">
-                      {t.tags && t.tags.length > 0 ? (
+                      {Array.isArray(t.tags) && t.tags.length > 0 ? (
                         t.tags.map((tagId: number) => {
                           const tagName = tagMap[tagId] || `Tag ${tagId}`;
                           return (
