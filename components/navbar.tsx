@@ -29,7 +29,7 @@ export default function Navbar() {
 
         {/* Desktop links */}
         <div className="hidden sm:flex space-x-6 text-sm font-medium">
-          <Link href="/" className="hover:text-yellow-600">
+          <Link href="/tests" className="hover:text-yellow-600">
             Home
           </Link>
           <Link href="/quiz" className="hover:text-yellow-600">
