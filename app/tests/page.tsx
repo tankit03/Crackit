@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import Navbar from '@/components/navbar';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -464,6 +465,7 @@ export default function TestsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Navbar/>
       {/* Header */}
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
