@@ -7,9 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { generateTest } from '@/utils/testGenerator';
 import { PublishTestModal } from '@/components/PublishTestModal';
 import { publishTest, PublishTestData } from '@/utils/publishTest';
-import { supabase } from '@/utils/supabase';
+import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import { Session } from '@supabase/supabase-js';
+import { redirect } from 'next/navigation';
 
 interface Question {
   question: string;
@@ -48,80 +49,27 @@ export default function CreateTestPage() {
   const [showResults, setShowResults] = useState(false);
   const [shuffledOptions, setShuffledOptions] = useState<number[][]>([]);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
+  const supabase = createClient();
 
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        setIsLoading(true);
-        setError(null);
-        
-        // Get initial session
-        const {
-          data: { session: initialSession },
-          error: sessionError,
-        } = await supabase.auth.getSession();
-
-        if (sessionError) {
-          console.error('Session error:', sessionError);
-          setError('Failed to initialize authentication');
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        if (!currentSession) {
+          router.push('/sign-in');
           return;
         }
-
-        console.log('Initial session check:', {
-          session: initialSession,
-          error: sessionError,
-        });
-        
-        setSession(initialSession);
-
-        // Listen for auth changes
-        const {
-          data: { subscription },
-        } = supabase.auth.onAuthStateChange(async (_event, updatedSession) => {
-          console.log('Auth state changed:', _event, {
-            session: updatedSession,
-          });
-          
-          if (_event === 'SIGNED_IN') {
-            setError(null);
-          }
-          
-          setSession(updatedSession);
-        });
-
-        return () => {
-          subscription.unsubscribe();
-        };
+        setSession(currentSession);
       } catch (error) {
-        console.error('Error initializing auth:', error);
-        setError('Failed to initialize authentication');
+        console.error('Auth error:', error);
+        router.push('/sign-in');
       } finally {
         setIsLoading(false);
       }
     };
 
     initializeAuth();
-  }, []);
-
-  const handleSignIn = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback?redirect_to=/create-test`,
-        },
-      });
-
-      if (error) {
-        console.error('Sign in error:', error);
-        setError(error.message);
-        return;
-      }
-    } catch (error) {
-      console.error('Failed to sign in:', error);
-      setError('Failed to sign in with Google. Please try again.');
-    }
-  };
+  }, [router]);
 
   const handleTextExtracted = (text: string) => {
     setExtractedText(text);
@@ -282,7 +230,7 @@ export default function CreateTestPage() {
                 <p className="text-yellow-600">
                   You must be logged in to publish tests.
                 </p>
-                <Button onClick={handleSignIn} variant="outline">
+                <Button onClick={() => router.push('/sign-in')} variant="outline">
                   Sign in with Google
                 </Button>
               </div>
