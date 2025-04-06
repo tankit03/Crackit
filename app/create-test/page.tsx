@@ -53,15 +53,25 @@ export default function CreateTestPage() {
     const initializeAuth = async () => {
       try {
         setIsLoading(true);
+        setError(null);
+        
         // Get initial session
         const {
           data: { session: initialSession },
           error: sessionError,
         } = await supabase.auth.getSession();
+
+        if (sessionError) {
+          console.error('Session error:', sessionError);
+          setError('Failed to initialize authentication');
+          return;
+        }
+
         console.log('Initial session check:', {
           session: initialSession,
           error: sessionError,
         });
+        
         setSession(initialSession);
 
         // Listen for auth changes
@@ -71,12 +81,20 @@ export default function CreateTestPage() {
           console.log('Auth state changed:', _event, {
             session: updatedSession,
           });
+          
+          if (_event === 'SIGNED_IN') {
+            setError(null);
+          }
+          
           setSession(updatedSession);
         });
 
-        return () => subscription.unsubscribe();
+        return () => {
+          subscription.unsubscribe();
+        };
       } catch (error) {
         console.error('Error initializing auth:', error);
+        setError('Failed to initialize authentication');
       } finally {
         setIsLoading(false);
       }
@@ -90,16 +108,18 @@ export default function CreateTestPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin + '/create-test',
+          redirectTo: `${window.location.origin}/auth/callback?redirect_to=/create-test`,
         },
       });
 
       if (error) {
         console.error('Sign in error:', error);
-        throw error;
+        setError(error.message);
+        return;
       }
     } catch (error) {
       console.error('Failed to sign in:', error);
+      setError('Failed to sign in with Google. Please try again.');
     }
   };
 
@@ -183,22 +203,46 @@ export default function CreateTestPage() {
   };
 
   const handlePublishTest = async (data: PublishTestData) => {
-    console.log('Current session:', session);
-    if (!session?.user) {
-      const {
-        data: { session: currentSession },
-      } = await supabase.auth.getSession();
-      console.log('Rechecked session:', currentSession);
+    try {
+      // First check current session state
+      if (!session?.user) {
+        // Try to get the current session
+        const {
+          data: { session: currentSession },
+          error: sessionError,
+        } = await supabase.auth.getSession();
 
-      if (!currentSession?.user) {
-        throw new Error('You must be logged in to publish a test');
+        if (sessionError) {
+          throw new Error(`Authentication error: ${sessionError.message}`);
+        }
+
+        if (!currentSession?.user) {
+          setError('You must be logged in to publish a test');
+          setIsPublishModalOpen(false);
+          return;
+        }
+
+        // Update the session if we found one
+        setSession(currentSession);
+        try {
+          await publishTest(data, currentSession.user.id);
+          setIsPublishModalOpen(false);
+        } catch (error) {
+          throw new Error('Failed to publish test: ' + (error as Error).message);
+        }
+      } else {
+        // We have a valid session, proceed with publishing
+        try {
+          await publishTest(data, session.user.id);
+          setIsPublishModalOpen(false);
+        } catch (error) {
+          throw new Error('Failed to publish test: ' + (error as Error).message);
+        }
       }
-
-      // Update the session if we found one
-      setSession(currentSession);
-      await publishTest(data, currentSession.user.id);
-    } else {
-      await publishTest(data, session.user.id);
+    } catch (error) {
+      console.error('Error in handlePublishTest:', error);
+      setError((error as Error).message);
+      setIsPublishModalOpen(false);
     }
   };
 
