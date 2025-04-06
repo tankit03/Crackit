@@ -11,15 +11,33 @@ export interface PublishTestData {
 
 export async function publishTest(data: PublishTestData, userId: string) {
   try {
+    // Validate input data
+    if (!data.university || data.university.trim() === '') {
+      throw new Error('University name is required');
+    }
+
+    if (!data.className || data.className.trim() === '') {
+      throw new Error('Class name is required');
+    }
+
+    if (!data.name || data.name.trim() === '') {
+      throw new Error('Test name is required');
+    }
+
+    if (!data.questions || data.questions.length === 0) {
+      throw new Error('Test must contain at least one question');
+    }
+
     // First, try to find or create the university
     const { data: universityData, error: universityError } = await supabase
       .from('universities')
       .select('id')
-      .eq('name', data.university)
+      .eq('name', data.university.trim())
       .single();
 
     if (universityError && universityError.code !== 'PGRST116') {
-      throw new Error('Error finding university');
+      console.error('University search error:', universityError);
+      throw new Error(`Error finding university: ${universityError.message}`);
     }
 
     let university_id = universityData?.id;
@@ -28,12 +46,17 @@ export async function publishTest(data: PublishTestData, userId: string) {
       const { data: newUniversity, error: createUniversityError } =
         await supabase
           .from('universities')
-          .insert([{ name: data.university }])
+          .insert([{ name: data.university.trim() }])
           .select('id')
           .single();
 
       if (createUniversityError) {
-        throw new Error('Error creating university');
+        console.error('University creation error:', createUniversityError);
+        throw new Error(`Error creating university: ${createUniversityError.message}`);
+      }
+
+      if (!newUniversity?.id) {
+        throw new Error('Failed to create university: No ID returned');
       }
 
       university_id = newUniversity.id;
