@@ -16,7 +16,7 @@ interface Test {
   tags: string | number[];
 }
 
-interface SavedTest {
+interface SupabaseTestResponse {
   test: Test;
 }
 
@@ -105,7 +105,7 @@ export default function SavedTestPage() {
         console.error('Supabase error →', error);
       } else {
         // Process each test to convert tags string to array
-        const processedTests = (data as SavedTest[])?.map(r => {
+        const processedTests = (data as SupabaseTestResponse[])?.map(r => {
           const test = {...r.test};
           
           // Convert tags string to array if it exists and is a string
