@@ -343,7 +343,7 @@ export default function TestsPage() {
               >
                 <Filter size={20} />
               </button>
-              <Link href="/saved-quizzes">
+              <Link href="/saved-test">
                 <Button
                   variant="outline"
                   className="bg-[#F2C76E] text-white border-none hover:bg-[#E5B85B] transition-colors"
