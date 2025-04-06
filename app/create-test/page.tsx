@@ -7,14 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { generateTest } from '@/utils/testGenerator';
 import { PublishTestModal } from '@/components/PublishTestModal';
 import { publishTest, PublishTestData } from '@/utils/publishTest';
-import { supabase } from '@/utils/supabase';
+import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import { Session } from '@supabase/supabase-js';
 
 interface Question {
   question: string;
   options: string[];
-  correctAnswer: number; // Index of the correct answer (0-3)
+  correctAnswer: number;
 }
 
 interface TestResult {
@@ -24,16 +24,6 @@ interface TestResult {
 interface UserAnswer {
   questionIndex: number;
   selectedOption: number | null;
-}
-
-// Fisher-Yates shuffle algorithm
-function shuffleArray<T>(array: T[]): T[] {
-  const newArray = [...array];
-  for (let i = newArray.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-  }
-  return newArray;
 }
 
 export default function CreateTestPage() {
@@ -46,82 +36,30 @@ export default function CreateTestPage() {
   const [error, setError] = useState<string | null>(null);
   const [userAnswers, setUserAnswers] = useState<UserAnswer[]>([]);
   const [showResults, setShowResults] = useState(false);
-  const [shuffledOptions, setShuffledOptions] = useState<number[][]>([]);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
+  const supabase = createClient();
 
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        setIsLoading(true);
-        setError(null);
-        
-        // Get initial session
         const {
-          data: { session: initialSession },
-          error: sessionError,
+          data: { session: currentSession },
         } = await supabase.auth.getSession();
-
-        if (sessionError) {
-          console.error('Session error:', sessionError);
-          setError('Failed to initialize authentication');
+        if (!currentSession) {
+          router.push('/sign-in');
           return;
         }
-
-        console.log('Initial session check:', {
-          session: initialSession,
-          error: sessionError,
-        });
-        
-        setSession(initialSession);
-
-        // Listen for auth changes
-        const {
-          data: { subscription },
-        } = supabase.auth.onAuthStateChange(async (_event, updatedSession) => {
-          console.log('Auth state changed:', _event, {
-            session: updatedSession,
-          });
-          
-          if (_event === 'SIGNED_IN') {
-            setError(null);
-          }
-          
-          setSession(updatedSession);
-        });
-
-        return () => {
-          subscription.unsubscribe();
-        };
+        setSession(currentSession);
       } catch (error) {
-        console.error('Error initializing auth:', error);
-        setError('Failed to initialize authentication');
+        console.error('Auth error:', error);
+        router.push('/sign-in');
       } finally {
         setIsLoading(false);
       }
     };
 
     initializeAuth();
-  }, []);
-
-  const handleSignIn = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback?redirect_to=/create-test`,
-        },
-      });
-
-      if (error) {
-        console.error('Sign in error:', error);
-        setError(error.message);
-        return;
-      }
-    } catch (error) {
-      console.error('Failed to sign in:', error);
-      setError('Failed to sign in with Google. Please try again.');
-    }
-  };
+  }, [router]);
 
   const handleTextExtracted = (text: string) => {
     setExtractedText(text);
@@ -129,7 +67,6 @@ export default function CreateTestPage() {
     setError(null);
     setUserAnswers([]);
     setShowResults(false);
-    setShuffledOptions([]);
   };
 
   const handleGenerateTest = async () => {
@@ -141,16 +78,11 @@ export default function CreateTestPage() {
     try {
       const result = await generateTest(extractedText);
       setTestResult(result);
-      // Initialize user answers array
       setUserAnswers(
         result.questions.map((_, index) => ({
           questionIndex: index,
           selectedOption: null,
         }))
-      );
-      // Initialize shuffled options for each question
-      setShuffledOptions(
-        result.questions.map(() => shuffleArray([0, 1, 2, 3]))
       );
     } catch (err) {
       setError(
@@ -177,10 +109,7 @@ export default function CreateTestPage() {
     if (!testResult) return 0;
     return userAnswers.reduce((score, answer) => {
       const question = testResult.questions[answer.questionIndex];
-      const originalCorrectIndex = question.correctAnswer;
-      const shuffledCorrectIndex =
-        shuffledOptions[answer.questionIndex].indexOf(originalCorrectIndex);
-      return score + (answer.selectedOption === shuffledCorrectIndex ? 1 : 0);
+      return score + (answer.selectedOption === question.correctAnswer ? 1 : 0);
     }, 0);
   };
 
@@ -196,17 +125,12 @@ export default function CreateTestPage() {
         selectedOption: null,
       }))
     );
-    setShuffledOptions(
-      testResult.questions.map(() => shuffleArray([0, 1, 2, 3]))
-    );
     setShowResults(false);
   };
 
   const handlePublishTest = async (data: PublishTestData) => {
     try {
-      // First check current session state
       if (!session?.user) {
-        // Try to get the current session
         const {
           data: { session: currentSession },
           error: sessionError,
@@ -222,21 +146,23 @@ export default function CreateTestPage() {
           return;
         }
 
-        // Update the session if we found one
         setSession(currentSession);
         try {
           await publishTest(data, currentSession.user.id);
           setIsPublishModalOpen(false);
         } catch (error) {
-          throw new Error('Failed to publish test: ' + (error as Error).message);
+          throw new Error(
+            'Failed to publish test: ' + (error as Error).message
+          );
         }
       } else {
-        // We have a valid session, proceed with publishing
         try {
           await publishTest(data, session.user.id);
           setIsPublishModalOpen(false);
         } catch (error) {
-          throw new Error('Failed to publish test: ' + (error as Error).message);
+          throw new Error(
+            'Failed to publish test: ' + (error as Error).message
+          );
         }
       }
     } catch (error) {
@@ -282,7 +208,10 @@ export default function CreateTestPage() {
                 <p className="text-yellow-600">
                   You must be logged in to publish tests.
                 </p>
-                <Button onClick={handleSignIn} variant="outline">
+                <Button
+                  onClick={() => router.push('/sign-in')}
+                  variant="outline"
+                >
                   Sign in with Google
                 </Button>
               </div>
@@ -331,7 +260,7 @@ export default function CreateTestPage() {
                         {index + 1}. {question.question}
                       </p>
                       <div className="space-y-1">
-                        {shuffledOptions[index]?.map((optionIndex) => (
+                        {question.options.map((option, optionIndex) => (
                           <div
                             key={optionIndex}
                             className={`p-2 rounded cursor-pointer ${
@@ -343,8 +272,7 @@ export default function CreateTestPage() {
                               handleAnswerSelect(index, optionIndex)
                             }
                           >
-                            {String.fromCharCode(65 + optionIndex)}.{' '}
-                            {question.options[optionIndex]}
+                            {String.fromCharCode(65 + optionIndex)}. {option}
                           </div>
                         ))}
                       </div>
@@ -379,7 +307,7 @@ export default function CreateTestPage() {
                         {index + 1}. {question.question}
                       </p>
                       <div className="space-y-1">
-                        {shuffledOptions[index]?.map((optionIndex) => (
+                        {question.options.map((option, optionIndex) => (
                           <div
                             key={optionIndex}
                             className={`p-2 rounded ${
@@ -391,8 +319,7 @@ export default function CreateTestPage() {
                                   : 'bg-gray-50 dark:bg-gray-800'
                             }`}
                           >
-                            {String.fromCharCode(65 + optionIndex)}.{' '}
-                            {question.options[optionIndex]}
+                            {String.fromCharCode(65 + optionIndex)}. {option}
                           </div>
                         ))}
                       </div>

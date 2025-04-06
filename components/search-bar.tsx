@@ -21,7 +21,7 @@ interface Test {
   user_id: number;
   university_id: number;
   class_id: number;
-  tags: string;
+  tags: number[];
   universities: { name: string };
   classes: { name: string };
 }
@@ -48,9 +48,7 @@ export default function SearchBar({ onResultsChange }: SearchBarProps) {
 
       setIsLoading(true);
       try {
-        let query = supabase
-          .from('test')
-          .select(`
+        let query = supabase.from('test').select(`
             *,
             universities(name),
             classes(name)
@@ -122,8 +120,8 @@ export default function SearchBar({ onResultsChange }: SearchBarProps) {
               <Checkbox
                 id="name-filter"
                 checked={filters.name}
-                onCheckedChange={(checked) => 
-                  setFilters(prev => ({ ...prev, name: checked as boolean }))
+                onCheckedChange={(checked) =>
+                  setFilters((prev) => ({ ...prev, name: checked as boolean }))
                 }
               />
               <Label htmlFor="name-filter">Test Name</Label>
@@ -132,8 +130,8 @@ export default function SearchBar({ onResultsChange }: SearchBarProps) {
               <Checkbox
                 id="tags-filter"
                 checked={filters.tags}
-                onCheckedChange={(checked) => 
-                  setFilters(prev => ({ ...prev, tags: checked as boolean }))
+                onCheckedChange={(checked) =>
+                  setFilters((prev) => ({ ...prev, tags: checked as boolean }))
                 }
               />
               <Label htmlFor="tags-filter">Tags</Label>
@@ -143,4 +141,4 @@ export default function SearchBar({ onResultsChange }: SearchBarProps) {
       </DropdownMenu>
     </div>
   );
-} 
+}
