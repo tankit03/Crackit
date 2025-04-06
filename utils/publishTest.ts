@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { createClient } from './supabase/client';
 
 export interface PublishTestData {
   name: string;
@@ -10,48 +10,57 @@ export interface PublishTestData {
 }
 
 export async function publishTest(data: PublishTestData, userId: string) {
+  const supabase = createClient();
+
   try {
-    // First, try to find or create the university
-    const { data: universityData, error: universityError } = await supabase
+    // First, try to find the university
+    const { data: universities, error: universityError } = await supabase
       .from('universities')
-      .select('id')
-      .eq('name', data.university)
+      .select('id, name')
+      .ilike('name', data.university)
       .single();
 
     if (universityError && universityError.code !== 'PGRST116') {
-      throw new Error('Error finding university');
+      throw new Error(`Error finding university: ${universityError.message}`);
     }
 
-    let university_id = universityData?.id;
+    let university_id = universities?.id;
 
     if (!university_id) {
+      // Create new university
       const { data: newUniversity, error: createUniversityError } =
         await supabase
           .from('universities')
-          .insert([{ name: data.university }])
+          .insert([
+            {
+              name: data.university,
+            },
+          ])
           .select('id')
           .single();
 
       if (createUniversityError) {
-        throw new Error('Error creating university');
+        throw new Error(
+          `Error creating university: ${createUniversityError.message}`
+        );
       }
 
       university_id = newUniversity.id;
     }
 
-    // Then, try to find or create the class
-    const { data: classData, error: classError } = await supabase
+    // Then, try to find the class
+    const { data: classes, error: classError } = await supabase
       .from('classes')
       .select('id')
-      .eq('name', data.className)
+      .ilike('name', data.className)
       .eq('university_id', university_id)
       .single();
 
     if (classError && classError.code !== 'PGRST116') {
-      throw new Error('Error finding class');
+      throw new Error(`Error finding class: ${classError.message}`);
     }
 
-    let class_id = classData?.id;
+    let class_id = classes?.id;
 
     if (!class_id) {
       const { data: newClass, error: createClassError } = await supabase
@@ -66,7 +75,7 @@ export async function publishTest(data: PublishTestData, userId: string) {
         .single();
 
       if (createClassError) {
-        throw new Error('Error creating class');
+        throw new Error(`Error creating class: ${createClassError.message}`);
       }
 
       class_id = newClass.id;
@@ -80,16 +89,17 @@ export async function publishTest(data: PublishTestData, userId: string) {
         user_id: userId,
         university_id: university_id,
         class_id: class_id,
-        tags: data.tags.join(','),
+        tags: data.tags,
         description: data.description,
       },
     ]);
 
     if (insertError) {
-      throw new Error(insertError.message);
+      console.error('Error inserting test:', insertError);
+      throw new Error(`Error publishing test: ${insertError.message}`);
     }
   } catch (error) {
-    console.error('Error publishing test:', error);
+    console.error('Error in publishTest:', error);
     throw error;
   }
 }

@@ -10,12 +10,11 @@ import { publishTest, PublishTestData } from '@/utils/publishTest';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import { Session } from '@supabase/supabase-js';
-import { redirect } from 'next/navigation';
 
 interface Question {
   question: string;
   options: string[];
-  correctAnswer: number; // Index of the correct answer (0-3)
+  correctAnswer: number;
 }
 
 interface TestResult {
@@ -25,16 +24,6 @@ interface TestResult {
 interface UserAnswer {
   questionIndex: number;
   selectedOption: number | null;
-}
-
-// Fisher-Yates shuffle algorithm
-function shuffleArray<T>(array: T[]): T[] {
-  const newArray = [...array];
-  for (let i = newArray.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-  }
-  return newArray;
 }
 
 export default function CreateTestPage() {
@@ -47,14 +36,15 @@ export default function CreateTestPage() {
   const [error, setError] = useState<string | null>(null);
   const [userAnswers, setUserAnswers] = useState<UserAnswer[]>([]);
   const [showResults, setShowResults] = useState(false);
-  const [shuffledOptions, setShuffledOptions] = useState<number[][]>([]);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        const {
+          data: { session: currentSession },
+        } = await supabase.auth.getSession();
         if (!currentSession) {
           router.push('/sign-in');
           return;
@@ -77,7 +67,6 @@ export default function CreateTestPage() {
     setError(null);
     setUserAnswers([]);
     setShowResults(false);
-    setShuffledOptions([]);
   };
 
   const handleGenerateTest = async () => {
@@ -89,16 +78,11 @@ export default function CreateTestPage() {
     try {
       const result = await generateTest(extractedText);
       setTestResult(result);
-      // Initialize user answers array
       setUserAnswers(
         result.questions.map((_, index) => ({
           questionIndex: index,
           selectedOption: null,
         }))
-      );
-      // Initialize shuffled options for each question
-      setShuffledOptions(
-        result.questions.map(() => shuffleArray([0, 1, 2, 3]))
       );
     } catch (err) {
       setError(
@@ -125,10 +109,7 @@ export default function CreateTestPage() {
     if (!testResult) return 0;
     return userAnswers.reduce((score, answer) => {
       const question = testResult.questions[answer.questionIndex];
-      const originalCorrectIndex = question.correctAnswer;
-      const shuffledCorrectIndex =
-        shuffledOptions[answer.questionIndex].indexOf(originalCorrectIndex);
-      return score + (answer.selectedOption === shuffledCorrectIndex ? 1 : 0);
+      return score + (answer.selectedOption === question.correctAnswer ? 1 : 0);
     }, 0);
   };
 
@@ -144,17 +125,12 @@ export default function CreateTestPage() {
         selectedOption: null,
       }))
     );
-    setShuffledOptions(
-      testResult.questions.map(() => shuffleArray([0, 1, 2, 3]))
-    );
     setShowResults(false);
   };
 
   const handlePublishTest = async (data: PublishTestData) => {
     try {
-      // First check current session state
       if (!session?.user) {
-        // Try to get the current session
         const {
           data: { session: currentSession },
           error: sessionError,
@@ -170,21 +146,23 @@ export default function CreateTestPage() {
           return;
         }
 
-        // Update the session if we found one
         setSession(currentSession);
         try {
           await publishTest(data, currentSession.user.id);
           setIsPublishModalOpen(false);
         } catch (error) {
-          throw new Error('Failed to publish test: ' + (error as Error).message);
+          throw new Error(
+            'Failed to publish test: ' + (error as Error).message
+          );
         }
       } else {
-        // We have a valid session, proceed with publishing
         try {
           await publishTest(data, session.user.id);
           setIsPublishModalOpen(false);
         } catch (error) {
-          throw new Error('Failed to publish test: ' + (error as Error).message);
+          throw new Error(
+            'Failed to publish test: ' + (error as Error).message
+          );
         }
       }
     } catch (error) {
@@ -230,7 +208,10 @@ export default function CreateTestPage() {
                 <p className="text-yellow-600">
                   You must be logged in to publish tests.
                 </p>
-                <Button onClick={() => router.push('/sign-in')} variant="outline">
+                <Button
+                  onClick={() => router.push('/sign-in')}
+                  variant="outline"
+                >
                   Sign in with Google
                 </Button>
               </div>
@@ -279,7 +260,7 @@ export default function CreateTestPage() {
                         {index + 1}. {question.question}
                       </p>
                       <div className="space-y-1">
-                        {shuffledOptions[index]?.map((optionIndex) => (
+                        {question.options.map((option, optionIndex) => (
                           <div
                             key={optionIndex}
                             className={`p-2 rounded cursor-pointer ${
@@ -291,8 +272,7 @@ export default function CreateTestPage() {
                               handleAnswerSelect(index, optionIndex)
                             }
                           >
-                            {String.fromCharCode(65 + optionIndex)}.{' '}
-                            {question.options[optionIndex]}
+                            {String.fromCharCode(65 + optionIndex)}. {option}
                           </div>
                         ))}
                       </div>
@@ -327,7 +307,7 @@ export default function CreateTestPage() {
                         {index + 1}. {question.question}
                       </p>
                       <div className="space-y-1">
-                        {shuffledOptions[index]?.map((optionIndex) => (
+                        {question.options.map((option, optionIndex) => (
                           <div
                             key={optionIndex}
                             className={`p-2 rounded ${
@@ -339,8 +319,7 @@ export default function CreateTestPage() {
                                   : 'bg-gray-50 dark:bg-gray-800'
                             }`}
                           >
-                            {String.fromCharCode(65 + optionIndex)}.{' '}
-                            {question.options[optionIndex]}
+                            {String.fromCharCode(65 + optionIndex)}. {option}
                           </div>
                         ))}
                       </div>
