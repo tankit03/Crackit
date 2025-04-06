@@ -15,7 +15,7 @@ interface Test {
   user_id: string;
   university_id: number;
   class_id: number;
-  tags: string;
+  tags: string;  // This is actually a JSON string
   description?: string;
   universities: {
     name: string;
@@ -25,19 +25,42 @@ interface Test {
   };
 }
 
+interface TagMap {
+  [key: number]: string;
+}
+
 export default function TestsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [tests, setTests] = useState<Test[]>([]);
+  const [tagMap, setTagMap] = useState<TagMap>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const supabase = createClient();
+
+  // Fetch all tags and create a map of id to name
+  const fetchTags = async () => {
+    const { data: tags, error } = await supabase
+      .from('tags')
+      .select('id, name');
+
+    if (error) {
+      console.error('Error fetching tags:', error);
+      return;
+    }
+
+    const map: TagMap = {};
+    tags?.forEach(tag => {
+      map[tag.id] = tag.name;
+    });
+    setTagMap(map);
+  };
 
   const searchTests = async () => {
     try {
       setIsLoading(true);
       setError(null);
 
-      // Get tests that match by name or tags
+      // Get tests that match by name
       const { data: nameTagTests, error: searchError } = await supabase
         .from('test')
         .select(`
@@ -49,7 +72,7 @@ export default function TestsPage() {
             name
           )
         `)
-        .or(`name.ilike.%${searchTerm}%,tags.ilike.%${searchTerm}%`);
+        .ilike('name', `%${searchTerm}%`);
 
       if (searchError) {
         console.error('Search error:', searchError);
@@ -98,11 +121,33 @@ export default function TestsPage() {
         `)
         .in('class_id', classIds);
 
+      // Get tests with matching tags
+      const { data: tagMatches } = await supabase
+        .from('tags')
+        .select('id')
+        .ilike('name', `%${searchTerm}%`);
+
+      const tagIds = tagMatches?.map(tag => tag.id) || [];
+      
+      const { data: tagTests } = tagIds.length > 0 ? await supabase
+        .from('test')
+        .select(`
+          *,
+          universities (
+            name
+          ),
+          classes (
+            name
+          )
+        `)
+        .contains('tags', tagIds) : { data: [] };
+
       // Combine and deduplicate results
       const allTests = [
         ...(nameTagTests || []),
         ...(uniTests || []),
-        ...(classTests || [])
+        ...(classTests || []),
+        ...(tagTests || [])
       ];
 
       const uniqueTests = Array.from(
@@ -118,8 +163,19 @@ export default function TestsPage() {
     }
   };
 
-  // Initial load of tests
+  // Parse tags string to array
+  const parseTagIds = (tagsString: string): number[] => {
+    try {
+      return JSON.parse(tagsString);
+    } catch (e) {
+      console.error('Error parsing tags:', e);
+      return [];
+    }
+  };
+
+  // Initial load of tests and tags
   useEffect(() => {
+    fetchTags();
     searchTests();
   }, []);
 
@@ -186,12 +242,12 @@ export default function TestsPage() {
                       )}
                       {test.tags && (
                         <div className="flex flex-wrap gap-2">
-                          {test.tags.split(',').map((tag, index) => (
+                          {parseTagIds(test.tags).map((tagId, index) => (
                             <span
                               key={index}
                               className="bg-secondary text-secondary-foreground px-2 py-1 rounded-md text-xs"
                             >
-                              {tag.trim()}
+                              {tagMap[tagId] || `Tag ${tagId}`}
                             </span>
                           ))}
                         </div>
