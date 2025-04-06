@@ -1,27 +1,27 @@
-import DeployButton from "@/components/deploy-button";
-import { EnvVarWarning } from "@/components/env-var-warning";
-import HeaderAuth from "@/components/header-auth";
-import { ThemeSwitcher } from "@/components/theme-switcher";
-import { hasEnvVars } from "@/utils/supabase/check-env-vars";
-import { Geist } from "next/font/google";
-import { ThemeProvider } from "next-themes";
-import Link from "next/link";
-import "./globals.css";
-import Navbar from "@/components/navbar";
+import DeployButton from '@/components/deploy-button';
+import { EnvVarWarning } from '@/components/env-var-warning';
+import HeaderAuth from '@/components/header-auth';
+import { ThemeSwitcher } from '@/components/theme-switcher';
+import { hasEnvVars } from '@/utils/supabase/check-env-vars';
+import { Geist } from 'next/font/google';
+import { ThemeProvider } from 'next-themes';
+import Link from 'next/link';
+import './globals.css';
+import Navbar from '@/components/navbar';
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
-  : "http://localhost:3000";
+  : 'http://localhost:3000';
 
 export const metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "Crackit - Test Creation and Sharing",
-  description: "Create, share, and take tests with your peers",
+  title: 'Crackit - Test Creation and Sharing',
+  description: 'Create, share, and take tests with your peers',
 };
 
 const geistSans = Geist({
-  display: "swap",
-  subsets: ["latin"],
+  display: 'swap',
+  subsets: ['latin'],
 });
 
 export default function RootLayout({
@@ -60,7 +60,7 @@ export default function RootLayout({
 
               <footer className="w-full flex items-center justify-center border-t mx-auto text-center text-xs gap-8 py-16">
                 <p>
-                  Powered by{" "}
+                  Powered by{' '}
                   <a
                     href="https://supabase.com/?utm_source=create-next-app&utm_medium=template&utm_term=nextjs"
                     target="_blank"
