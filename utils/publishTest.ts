@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { createClient } from './supabase/client';
 
 export interface PublishTestData {
   name: string;
@@ -9,110 +9,150 @@ export interface PublishTestData {
   questions: any[];
 }
 
-export async function publishTest(data: PublishTestData, userId: string) {
+export async function publishTest(data: PublishTestData) {
   try {
-    // Validate input data
-    if (!data.university || data.university.trim() === '') {
-      throw new Error('University name is required');
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      throw new Error('User must be authenticated to publish a test');
     }
 
-    if (!data.className || data.className.trim() === '') {
-      throw new Error('Class name is required');
-    }
+    let universityId: number;
+    let classId: number;
 
-    if (!data.name || data.name.trim() === '') {
-      throw new Error('Test name is required');
-    }
-
-    if (!data.questions || data.questions.length === 0) {
-      throw new Error('Test must contain at least one question');
-    }
-
-    // First, try to find or create the university
-    const { data: universityData, error: universityError } = await supabase
+    // First, try to find the university
+    const { data: universities, error: universityError } = await supabase
       .from('universities')
-      .select('id')
-      .eq('name', data.university.trim())
+      .select('id, name')
+      .ilike('name', data.university)
       .single();
 
     if (universityError && universityError.code !== 'PGRST116') {
-      console.error('University search error:', universityError);
       throw new Error(`Error finding university: ${universityError.message}`);
     }
 
-    let university_id = universityData?.id;
+    universityId = universities?.id;
 
-    if (!university_id) {
+    if (!universityId) {
+      // Create new university
       const { data: newUniversity, error: createUniversityError } =
         await supabase
           .from('universities')
-          .insert([{ name: data.university.trim() }])
+          .insert([
+            {
+              name: data.university,
+            },
+          ])
           .select('id')
           .single();
 
       if (createUniversityError) {
-        console.error('University creation error:', createUniversityError);
-        throw new Error(`Error creating university: ${createUniversityError.message}`);
+        throw new Error(
+          `Error creating university: ${createUniversityError.message}`
+        );
       }
 
-      if (!newUniversity?.id) {
-        throw new Error('Failed to create university: No ID returned');
-      }
-
-      university_id = newUniversity.id;
+      universityId = newUniversity.id;
     }
 
-    // Then, try to find or create the class
+    // Find or create class
     const { data: classData, error: classError } = await supabase
       .from('classes')
       .select('id')
       .eq('name', data.className)
-      .eq('university_id', university_id)
+      .eq('university_id', universityId)
       .single();
 
-    if (classError && classError.code !== 'PGRST116') {
-      throw new Error('Error finding class');
-    }
-
-    let class_id = classData?.id;
-
-    if (!class_id) {
+    if (classError) {
+      console.error('Error finding class:', classError);
+      // Create class if it doesn't exist
       const { data: newClass, error: createClassError } = await supabase
         .from('classes')
         .insert([
           {
             name: data.className,
-            university_id: university_id,
+            university_id: universityId,
           },
         ])
-        .select('id')
+        .select()
         .single();
 
       if (createClassError) {
-        throw new Error('Error creating class');
+        throw new Error(`Failed to create class: ${createClassError.message}`);
       }
 
-      class_id = newClass.id;
+      classId = newClass.id;
+    } else {
+      classId = classData.id;
     }
 
-    // Finally, insert the test
+    // Process tags first to get all tag IDs
+    const tagIds: number[] = [];
+
+    if (data.tags && data.tags.length > 0) {
+      for (const tagName of data.tags) {
+        try {
+          // Try to find existing tag
+          const { data: existingTags, error: findTagError } = await supabase
+            .from('tags')
+            .select('id')
+            .eq('name', tagName)
+            .maybeSingle();
+
+          if (findTagError) {
+            console.error(`Error finding tag ${tagName}:`, findTagError);
+            continue;
+          }
+
+          let tagId = existingTags?.id;
+
+          // If tag doesn't exist, create it
+          if (!tagId) {
+            const { data: newTag, error: createTagError } = await supabase
+              .from('tags')
+              .insert([{ name: tagName }])
+              .select('id')
+              .single();
+
+            if (createTagError) {
+              console.error(`Error creating tag ${tagName}:`, createTagError);
+              continue;
+            }
+
+            tagId = newTag.id;
+          }
+
+          if (tagId) {
+            tagIds.push(tagId);
+          }
+        } catch (tagError) {
+          console.error(`Error processing tag ${tagName}:`, tagError);
+        }
+      }
+    }
+
+    // Insert the test with tag IDs
     const { error: insertError } = await supabase.from('test').insert([
       {
         name: data.name,
         questions: data.questions,
-        user_id: userId,
-        university_id: university_id,
-        class_id: class_id,
-        tags: data.tags.join(','),
+        user_id: user.id,
+        university_id: universityId,
+        class_id: classId,
         description: data.description,
+        tags: tagIds, // Store tag IDs directly in the test record
       },
     ]);
 
     if (insertError) {
-      throw new Error(insertError.message);
+      console.error('Error inserting test:', insertError);
+      throw new Error(`Error publishing test: ${insertError.message}`);
     }
   } catch (error) {
-    console.error('Error publishing test:', error);
+    console.error('Error in publishTest:', error);
     throw error;
   }
 }

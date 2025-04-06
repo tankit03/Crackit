@@ -68,11 +68,11 @@ export const signInAction = async (formData: FormData) => {
       .single();
 
     if (!profile?.has_completed_profile) {
-      return redirect("/university-info");
+      return redirect("/tests");
     }
   }
 
-  return redirect("/protected");
+  return redirect("/tests");
 };
 
 export const forgotPasswordAction = async (formData: FormData) => {
