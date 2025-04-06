@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Confetti from 'react-confetti';
 import { useWindowSize } from 'react-use';
 import { useRouter } from "next/navigation";
-import Navbar from "@/components/Navbar";
+import Navbar from "@/components/navbar";
 
 export default function QuizPage() {
   const router = useRouter();
