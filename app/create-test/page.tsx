@@ -10,6 +10,11 @@ import { publishTest, PublishTestData } from '@/utils/publishTest';
 import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import { Session } from '@supabase/supabase-js';
+import { regenerateQuestions } from '@/utils/regenerateQuestions';
+import { useToast } from '@/components/ui/use-toast';
+import { Loader2 } from 'lucide-react';
+import { Toaster } from '@/components/ui/toaster';
+import FileUploader from '@/components/FileUploader';
 
 interface Question {
   question: string;
@@ -28,6 +33,7 @@ interface UserAnswer {
 
 export default function CreateTestPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [extractedText, setExtractedText] = useState<string | null>(null);
@@ -38,6 +44,7 @@ export default function CreateTestPage() {
   const [showResults, setShowResults] = useState(false);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const supabase = createClient();
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -176,6 +183,57 @@ export default function CreateTestPage() {
     return userAnswers.every((answer) => answer.selectedOption !== null);
   };
 
+  const handleRegenerateQuestion = async (index: number) => {
+    if (
+      !extractedText ||
+      !testResult?.questions ||
+      testResult.questions.length === 0
+    ) {
+      toast({
+        title: 'Error',
+        description: 'Please enter text and generate initial questions first',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsRegenerating(true);
+    try {
+      const [newQuestion] = await regenerateQuestions({
+        text: extractedText,
+        existingQuestions: testResult.questions,
+        questionIndex: index,
+      });
+
+      const updatedQuestions = [...testResult.questions];
+      updatedQuestions[index] = newQuestion;
+
+      setTestResult({ questions: updatedQuestions });
+      setUserAnswers((prev) => {
+        const newAnswers = [...prev];
+        newAnswers[index] = {
+          questionIndex: index,
+          selectedOption: null,
+        };
+        return newAnswers;
+      });
+
+      toast({
+        title: 'Success',
+        description: 'Question regenerated successfully',
+      });
+    } catch (error) {
+      console.error('Error regenerating question:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to regenerate question',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="container mx-auto py-8 flex justify-center items-center">
@@ -184,163 +242,111 @@ export default function CreateTestPage() {
     );
   }
 
+  if (!session) {
+    return (
+      <div className="container mx-auto py-8">
+        <Card className="bg-red-50 dark:bg-red-900/20">
+          <CardContent className="pt-6">
+            <p className="text-red-500 dark:text-red-400">
+              You must be logged in to create a test
+            </p>
+            <Button onClick={() => router.push('/login')} className="mt-4">
+              Login
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
-    <div className="container mx-auto py-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div>
-          <PdfToTextConverter onTextExtracted={handleTextExtracted} />
-          <div className="mt-4 space-y-2">
-            {session ? (
-              <div className="flex items-center space-x-2">
-                <p className="text-green-600">
-                  Logged in as: {session.user.email}
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => supabase.auth.signOut()}
-                >
-                  Sign Out
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <p className="text-yellow-600">
-                  You must be logged in to publish tests.
-                </p>
-                <Button
-                  onClick={() => router.push('/sign-in')}
-                  variant="outline"
-                >
-                  Sign in with Google
-                </Button>
-              </div>
-            )}
+    <>
+      <Toaster />
+      <div className="container mx-auto py-8">
+        <div className="flex flex-col gap-8">
+          <div>
+            <h1 className="text-3xl font-bold">Create Test</h1>
+            <p className="text-muted-foreground">
+              Enter your text and generate test questions
+            </p>
           </div>
-        </div>
-        <div className="space-y-4">
-          {extractedText && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Extracted Text</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="max-h-96 overflow-y-auto bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-                  <pre className="whitespace-pre-wrap text-sm text-gray-900 dark:text-gray-100">
-                    {extractedText}
-                  </pre>
-                </div>
-                <Button
-                  onClick={handleGenerateTest}
-                  disabled={isGeneratingTest}
-                  className="mt-4 w-full"
-                >
-                  {isGeneratingTest ? 'Generating Test...' : 'Generate Test'}
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-          {error && (
-            <Card className="bg-red-50 dark:bg-red-900/20">
-              <CardContent className="pt-6">
-                <p className="text-red-500 dark:text-red-400">{error}</p>
-              </CardContent>
-            </Card>
-          )}
-          {testResult && !showResults && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Test Questions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  {testResult.questions.map((question, index) => (
-                    <div key={index} className="space-y-2">
-                      <p className="font-medium">
-                        {index + 1}. {question.question}
-                      </p>
-                      <div className="space-y-1">
-                        {question.options.map((option, optionIndex) => (
-                          <div
-                            key={optionIndex}
-                            className={`p-2 rounded cursor-pointer ${
-                              userAnswers[index]?.selectedOption === optionIndex
-                                ? 'bg-blue-100 dark:bg-blue-900/30'
-                                : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700'
-                            }`}
-                            onClick={() =>
-                              handleAnswerSelect(index, optionIndex)
-                            }
-                          >
-                            {String.fromCharCode(65 + optionIndex)}. {option}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Enter Text</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <FileUploader onTextExtracted={setExtractedText} />
+                  <textarea
+                    className="w-full h-64 p-4 border rounded-md"
+                    value={extractedText || ''}
+                    onChange={(e) => setExtractedText(e.target.value)}
+                    placeholder="Paste your text here or upload a file..."
+                  />
+                </CardContent>
+              </Card>
+            </div>
+
+            <div>
+              {testResult && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Generated Questions</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {testResult.questions.map((question, index) => (
+                        <div key={index} className="space-y-2">
+                          <div className="flex justify-between items-start">
+                            <p className="font-medium">
+                              {index + 1}. {question.question}
+                            </p>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRegenerateQuestion(index)}
+                              disabled={isRegenerating}
+                            >
+                              {isRegenerating ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                'Regenerate'
+                              )}
+                            </Button>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                  <Button
-                    onClick={handleSubmitTest}
-                    disabled={!isTestComplete()}
-                    className="w-full mt-4"
-                  >
-                    Submit Test
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-          {showResults && testResult && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Test Results</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold">
-                      Score: {calculateScore()} / {testResult.questions.length}
-                    </p>
-                  </div>
-                  {testResult.questions.map((question, index) => (
-                    <div key={index} className="space-y-2">
-                      <p className="font-medium">
-                        {index + 1}. {question.question}
-                      </p>
-                      <div className="space-y-1">
-                        {question.options.map((option, optionIndex) => (
-                          <div
-                            key={optionIndex}
-                            className={`p-2 rounded ${
-                              optionIndex === question.correctAnswer
-                                ? 'bg-green-200 dark:bg-green-900/40'
-                                : userAnswers[index]?.selectedOption ===
-                                    optionIndex
-                                  ? 'bg-red-200 dark:bg-red-900/40'
-                                  : 'bg-gray-50 dark:bg-gray-800'
-                            }`}
-                          >
-                            {String.fromCharCode(65 + optionIndex)}. {option}
+                          <div className="space-y-1">
+                            {question.options.map((option, optionIndex) => (
+                              <div
+                                key={optionIndex}
+                                className={`p-2 rounded ${
+                                  userAnswers[index]?.selectedOption ===
+                                  optionIndex
+                                    ? 'bg-blue-100 dark:bg-blue-900/30'
+                                    : 'bg-gray-50 dark:bg-gray-800'
+                                }`}
+                                onClick={() => {
+                                  const newAnswers = [...userAnswers];
+                                  newAnswers[index] = {
+                                    questionIndex: index,
+                                    selectedOption: optionIndex,
+                                  };
+                                  setUserAnswers(newAnswers);
+                                }}
+                              >
+                                {option}
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                  <div className="flex gap-2">
-                    <Button onClick={handleRetakeTest} className="w-full">
-                      Retake Test
-                    </Button>
-                    <Button
-                      onClick={() => setIsPublishModalOpen(true)}
-                      className="w-full"
-                      variant="secondary"
-                    >
-                      Publish Test
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
         </div>
       </div>
       {testResult && (
@@ -354,6 +360,6 @@ export default function CreateTestPage() {
           }}
         />
       )}
-    </div>
+    </>
   );
 }

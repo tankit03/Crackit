@@ -5,7 +5,14 @@ import { createClient } from '@/utils/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, SortAsc, SortDesc } from 'lucide-react';
+import {
+  Search,
+  SortAsc,
+  SortDesc,
+  BookmarkIcon,
+  X,
+  Filter,
+} from 'lucide-react';
 import Link from 'next/link';
 import {
   Select,
@@ -13,7 +20,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 
 interface Test {
   id: number;
@@ -44,17 +51,29 @@ export default function TestsPage() {
   const [tagMap, setTagMap] = useState<TagMap>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [universities, setUniversities] = useState<{ id: number; name: string }[]>([]);
-  const [filteredUniversities, setFilteredUniversities] = useState<{ id: number; name: string }[]>([]);
+  const [universities, setUniversities] = useState<
+    { id: number; name: string }[]
+  >([]);
+  const [filteredUniversities, setFilteredUniversities] = useState<
+    { id: number; name: string }[]
+  >([]);
   const [selectedUniversity, setSelectedUniversity] = useState<string>('all');
   const [classes, setClasses] = useState<{ id: number; name: string }[]>([]);
-  const [filteredClasses, setFilteredClasses] = useState<{ id: number; name: string }[]>([]);
+  const [filteredClasses, setFilteredClasses] = useState<
+    { id: number; name: string }[]
+  >([]);
   const [selectedClass, setSelectedClass] = useState<string>('all');
-  const [availableTags, setAvailableTags] = useState<{ id: number; name: string }[]>([]);
-  const [filteredTags, setFilteredTags] = useState<{ id: number; name: string }[]>([]);
+  const [availableTags, setAvailableTags] = useState<
+    { id: number; name: string }[]
+  >([]);
+  const [filteredTags, setFilteredTags] = useState<
+    { id: number; name: string }[]
+  >([]);
   const [selectedTag, setSelectedTag] = useState<string>('all');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const supabase = createClient();
+  const [userName, setUserName] = useState<string>('');
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
 
   // Fetch universities
   const fetchUniversities = async () => {
@@ -101,7 +120,7 @@ export default function TestsPage() {
     }
 
     const map: TagMap = {};
-    tags?.forEach(tag => {
+    tags?.forEach((tag) => {
       map[tag.id] = tag.name;
     });
     setTagMap(map);
@@ -114,9 +133,7 @@ export default function TestsPage() {
       setIsLoading(true);
       setError(null);
 
-      let query = supabase
-        .from('test')
-        .select(`
+      let query = supabase.from('test').select(`
           *,
           universities (
             name
@@ -159,13 +176,13 @@ export default function TestsPage() {
       let filteredData = nameResults || [];
       if (searchTerm && filteredData.length >= 0) {
         const searchLower = searchTerm.toLowerCase();
-        filteredData = filteredData.filter(test => {
+        filteredData = filteredData.filter((test) => {
           const testTags = test.tags ? parseTagIds(test.tags) : [];
           return (
             test.name.toLowerCase().includes(searchLower) ||
             test.universities?.name.toLowerCase().includes(searchLower) ||
             test.classes?.name.toLowerCase().includes(searchLower) ||
-            testTags.some(tagId => 
+            testTags.some((tagId) =>
               tagMap[tagId]?.toLowerCase().includes(searchLower)
             )
           );
@@ -175,7 +192,9 @@ export default function TestsPage() {
       setTests(filteredData);
     } catch (err) {
       console.error('Error in searchTests:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred while searching');
+      setError(
+        err instanceof Error ? err.message : 'An error occurred while searching'
+      );
     } finally {
       setIsLoading(false);
     }
@@ -188,7 +207,8 @@ export default function TestsPage() {
         return [];
       }
       // Handle both string array format and direct array format
-      const parsed = typeof tagsString === 'string' ? JSON.parse(tagsString) : tagsString;
+      const parsed =
+        typeof tagsString === 'string' ? JSON.parse(tagsString) : tagsString;
       return Array.isArray(parsed) ? parsed : [];
     } catch (e) {
       console.error('Error parsing tags:', e);
@@ -198,6 +218,16 @@ export default function TestsPage() {
 
   // Initial load
   useEffect(() => {
+    const fetchUserData = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session?.user?.user_metadata?.full_name) {
+        setUserName(session.user.user_metadata.full_name);
+      }
+    };
+
+    fetchUserData();
     fetchUniversities();
     fetchClasses();
     fetchTags();
@@ -221,202 +251,216 @@ export default function TestsPage() {
     });
   };
 
-  return (
-    <div className="container mx-auto py-8">
-      <div className="flex flex-col gap-8">
-        <div className="flex flex-col gap-4">
-          <h1 className="text-3xl font-bold">Published Tests</h1>
-          
-          {/* Search and Filters */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-            <div className="relative col-span-full md:col-span-2">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search tests by name..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            
-            <Select
-              value={selectedUniversity}
-              onValueChange={setSelectedUniversity}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by University" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Universities</SelectItem>
-                <div className="relative">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search universities..."
-                    className="pl-8 h-9 mb-2"
-                    onChange={(e) => {
-                      const input = e.target.value.toLowerCase();
-                      setFilteredUniversities(
-                        universities.filter(uni =>
-                          uni.name.toLowerCase().includes(input)
-                        )
-                      );
-                    }}
-                  />
-                </div>
-                {filteredUniversities.map((uni) => (
-                  <SelectItem key={uni.id} value={uni.id.toString()}>
-                    {uni.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+  const FiltersContent = () => (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-sm font-medium text-gray-600 mb-2">Topic</h3>
+        <Select value={selectedTag} onValueChange={setSelectedTag}>
+          <SelectTrigger className="border-2 border-gray-200 focus:border-[#F2C76E] focus:ring-2 focus:ring-[#F2C76E]">
+            <SelectValue placeholder="Select topic" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Topics</SelectItem>
+            {filteredTags.map((tag) => (
+              <SelectItem key={tag.id} value={tag.id.toString()}>
+                {tag.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-            <Select
-              value={selectedClass}
-              onValueChange={setSelectedClass}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by Class" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Classes</SelectItem>
-                <div className="relative">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search classes..."
-                    className="pl-8 h-9 mb-2"
-                    onChange={(e) => {
-                      const input = e.target.value.toLowerCase();
-                      setFilteredClasses(
-                        classes.filter(cls =>
-                          cls.name.toLowerCase().includes(input)
-                        )
-                      );
-                    }}
-                  />
-                </div>
-                {filteredClasses.map((cls) => (
-                  <SelectItem key={cls.id} value={cls.id.toString()}>
-                    {cls.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      <div>
+        <h3 className="text-sm font-medium text-gray-600 mb-2">University</h3>
+        <Select
+          value={selectedUniversity}
+          onValueChange={setSelectedUniversity}
+        >
+          <SelectTrigger className="border-2 border-gray-200 focus:border-[#F2C76E] focus:ring-2 focus:ring-[#F2C76E]">
+            <SelectValue placeholder="Select university" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Universities</SelectItem>
+            {filteredUniversities.map((uni) => (
+              <SelectItem key={uni.id} value={uni.id.toString()}>
+                {uni.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-            <Select
-              value={selectedTag}
-              onValueChange={setSelectedTag}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by Tag" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Tags</SelectItem>
-                <div className="relative">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search tags..."
-                    className="pl-8 h-9 mb-2"
-                    onChange={(e) => {
-                      const input = e.target.value.toLowerCase();
-                      setFilteredTags(
-                        availableTags.filter(tag =>
-                          tag.name.toLowerCase().includes(input)
-                        )
-                      );
-                    }}
-                  />
-                </div>
-                {filteredTags.map((tag) => (
-                  <SelectItem key={tag.id} value={tag.id.toString()}>
-                    {tag.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      <div>
+        <h3 className="text-sm font-medium text-gray-600 mb-2">Class</h3>
+        <Select value={selectedClass} onValueChange={setSelectedClass}>
+          <SelectTrigger className="border-2 border-gray-200 focus:border-[#F2C76E] focus:ring-2 focus:ring-[#F2C76E]">
+            <SelectValue placeholder="Select class" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Classes</SelectItem>
+            {filteredClasses.map((cls) => (
+              <SelectItem key={cls.id} value={cls.id.toString()}>
+                {cls.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-            <Select
-              value={sortBy}
-              onValueChange={(value: SortOption) => setSortBy(value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Sort by" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="newest">
-                  <div className="flex items-center gap-2">
-                    <SortDesc className="h-4 w-4" />
-                    Newest First
-                  </div>
-                </SelectItem>
-                <SelectItem value="oldest">
-                  <div className="flex items-center gap-2">
-                    <SortAsc className="h-4 w-4" />
-                    Oldest First
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {error && (
-          <Card className="bg-red-50 dark:bg-red-900/20">
-            <CardContent className="pt-6">
-              <p className="text-red-500 dark:text-red-400">{error}</p>
-            </CardContent>
-          </Card>
-        )}
-
-        {isLoading ? (
-          <div className="flex justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-          </div>
-        ) : (
-          <div className="grid gap-4">
-            {tests.length > 0 ? (
-              tests.map((test) => (
-                <Card key={test.id}>
-                  <CardHeader>
-                    <CardTitle>{test.name || 'Untitled Test'}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-col gap-2">
-                      <div className="text-sm text-muted-foreground">
-                        {test.universities?.name} • {test.classes?.name} • {formatDate(test.created_at)}
-                      </div>
-                      {test.description && (
-                        <p className="text-sm">{test.description}</p>
-                      )}
-                      {test.tags && (
-                        <div className="flex flex-wrap gap-2">
-                          {parseTagIds(test.tags).map((tagId, index) => (
-                            <span
-                              key={index}
-                              className="bg-secondary text-secondary-foreground px-2 py-1 rounded-md text-xs"
-                            >
-                              {tagMap[tagId] || `Tag ${tagId}`}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      <div className="mt-4">
-                        <Button asChild>
-                          <Link href={`/test/${test.id}`}>Take Test</Link>
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              <div className="text-center text-muted-foreground py-8">
-                No tests found. Try different search terms or filters.
-              </div>
-            )}
-          </div>
-        )}
+      <div>
+        <h3 className="text-sm font-medium text-gray-600 mb-2">Sort By</h3>
+        <Select
+          value={sortBy}
+          onValueChange={(value) => setSortBy(value as SortOption)}
+        >
+          <SelectTrigger className="border-2 border-gray-200 focus:border-[#F2C76E] focus:ring-2 focus:ring-[#F2C76E]">
+            <SelectValue placeholder="Sort by" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="newest">Newest First</SelectItem>
+            <SelectItem value="oldest">Oldest First</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
     </div>
   );
-} 
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center">
+              <h1 className="text-xl md:text-2xl font-semibold text-gray-900">
+                Let's Learn, <span className="text-[#F2C76E]">{userName}</span>
+              </h1>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsMobileFiltersOpen(true)}
+                className="md:hidden p-2 text-gray-500 hover:text-gray-700"
+              >
+                <Filter size={20} />
+              </button>
+              <Link href="/saved-quizzes">
+                <Button
+                  variant="outline"
+                  className="bg-[#F2C76E] text-white border-none hover:bg-[#E5B85B] transition-colors"
+                >
+                  Saved Quizzes
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Search Bar */}
+        <div className="mb-8">
+          <div className="relative">
+            <Input
+              type="text"
+              placeholder="Quiz Name"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 rounded-full border-2 border-[#F2C76E] focus:ring-2 focus:ring-[#F2C76E] focus:border-transparent"
+            />
+            <Search
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#F2C76E]"
+              size={20}
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col md:flex-row gap-8">
+          {/* Desktop Filters Sidebar */}
+          <div className="hidden md:block w-64 flex-shrink-0">
+            <FiltersContent />
+          </div>
+
+          {/* Mobile Filters Modal */}
+          {isMobileFiltersOpen && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 z-50 md:hidden">
+              <div className="absolute right-0 top-0 h-full w-80 bg-white p-6 overflow-y-auto">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-lg font-semibold">Filters</h2>
+                  <button
+                    onClick={() => setIsMobileFiltersOpen(false)}
+                    className="p-2 hover:bg-gray-100 rounded-full"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                <FiltersContent />
+              </div>
+            </div>
+          )}
+
+          {/* Tests Grid */}
+          <div className="flex-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {isLoading ? (
+                <p>Loading tests...</p>
+              ) : error ? (
+                <p className="text-red-500">{error}</p>
+              ) : tests.length === 0 ? (
+                <p>No tests found.</p>
+              ) : (
+                tests.map((test) => (
+                  <Link key={test.id} href={`/test/${test.id}`}>
+                    <Card className="h-full hover:shadow-lg transition-shadow duration-200 bg-[#FDF6E9] relative border-none">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-lg font-medium text-gray-800">
+                          {test.name}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap gap-2">
+                            {test.tags &&
+                              parseTagIds(test.tags).map((tagId, index) => {
+                                const tagColors = [
+                                  'bg-[#67B7D0] text-white',
+                                  'bg-[#9EC582] text-white',
+                                  'bg-[#E5A5BD] text-white',
+                                  'bg-[#F2C76E] text-white',
+                                ];
+                                const colorIndex = index % tagColors.length;
+                                return (
+                                  <span
+                                    key={tagId}
+                                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${tagColors[colorIndex]}`}
+                                  >
+                                    {tagMap[tagId]}
+                                  </span>
+                                );
+                              })}
+                          </div>
+                          <div className="flex items-center text-sm text-gray-600">
+                            <span>{test.universities?.name}</span>
+                            <span className="mx-2">•</span>
+                            <span>{test.classes?.name}</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                      <button
+                        className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-[#F5E6D0] transition-colors"
+                        onClick={(e) => {
+                          e.preventDefault();
+                        }}
+                      >
+                        <BookmarkIcon className="h-5 w-5 text-[#F2C76E]" />
+                      </button>
+                    </Card>
+                  </Link>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
