@@ -8,14 +8,17 @@ import { redirect } from "next/navigation";
 export const signUpAction = async (formData: FormData) => {
   const email = formData.get("email")?.toString();
   const password = formData.get("password")?.toString();
+  const firstName = formData.get("firstName")?.toString();
+  const lastName = formData.get("lastName")?.toString();
+  const university = formData.get("university")?.toString();
   const supabase = await createClient();
   const origin = (await headers()).get("origin");
 
-  if (!email || !password) {
+  if (!email || !password || !firstName || !lastName || !university) {
     return encodedRedirect(
       "error",
       "/sign-up",
-      "Email and password are required",
+      "All fields are required",
     );
   }
 
@@ -24,19 +27,21 @@ export const signUpAction = async (formData: FormData) => {
     password,
     options: {
       emailRedirectTo: `${origin}/auth/callback`,
+      data: {
+        first_name: firstName,
+        last_name: lastName,
+        display_name: `${firstName} ${lastName}`,
+        university: university
+      },
     },
   });
 
   if (error) {
     console.error(error.code + " " + error.message);
     return encodedRedirect("error", "/sign-up", error.message);
-  } else {
-    return encodedRedirect(
-      "success",
-      "/sign-up",
-      "Thanks for signing up! Please check your email for a verification link.",
-    );
   }
+
+  return redirect("/");
 };
 
 export const signInAction = async (formData: FormData) => {
@@ -51,6 +56,20 @@ export const signInAction = async (formData: FormData) => {
 
   if (error) {
     return encodedRedirect("error", "/sign-in", error.message);
+  }
+
+  // Check if user has completed their profile
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('has_completed_profile')
+      .eq('user_id', user.id)
+      .single();
+
+    if (!profile?.has_completed_profile) {
+      return redirect("/university-info");
+    }
   }
 
   return redirect("/protected");
@@ -131,4 +150,48 @@ export const signOutAction = async () => {
   const supabase = await createClient();
   await supabase.auth.signOut();
   return redirect("/sign-in");
+};
+
+export const updateUniversityInfo = async (formData: FormData) => {
+  const university = formData.get("university")?.toString();
+  const level = formData.get("level")?.toString();
+  const supabase = await createClient();
+
+  if (!university || !level) {
+    return encodedRedirect(
+      "error",
+      "/university-info",
+      "All fields are required",
+    );
+  }
+
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    return encodedRedirect(
+      "error",
+      "/university-info",
+      "User not authenticated",
+    );
+  }
+
+  const { error } = await supabase
+    .from('user_profiles')
+    .upsert({
+      user_id: user.id,
+      university,
+      level,
+      has_completed_profile: true
+    });
+
+  if (error) {
+    console.error(error);
+    return encodedRedirect(
+      "error",
+      "/university-info",
+      "Failed to update profile",
+    );
+  }
+
+  return redirect("/");
 };
