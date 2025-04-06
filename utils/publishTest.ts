@@ -9,15 +9,20 @@ export interface PublishTestData {
   questions: any[];
 }
 
-export async function publishTest(data: PublishTestData) {
+export async function publishTest(data: PublishTestData, userId?: string) {
   try {
     const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
 
-    if (!user) {
-      throw new Error('User must be authenticated to publish a test');
+    // If userId is not provided, get it from auth
+    if (!userId) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        throw new Error('User must be authenticated to publish a test');
+      }
+      userId = user.id;
     }
 
     let universityId: number;
@@ -142,11 +147,11 @@ export async function publishTest(data: PublishTestData) {
       {
         name: data.name,
         questions: data.questions,
-        user_id: user.id,
+        user_id: userId,
         university_id: universityId,
         class_id: classId,
         description: data.description,
-        tags: tagIds, // Store tag IDs directly in the test record
+        tags: tagIds,
       },
     ]);
 

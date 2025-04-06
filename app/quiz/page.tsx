@@ -43,10 +43,12 @@ export default function QuizPage() {
 
   if (!testData) {
     return (
-      <div className="min-h-screen bg-white p-6 relative flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <div className="text-center">
-          <h2 className="text-2xl font-semibold">Loading test...</h2>
+        <div className="flex items-center justify-center h-[calc(100vh-64px)]">
+          <div className="text-center">
+            <h2 className="text-2xl font-semibold">Loading test...</h2>
+          </div>
         </div>
       </div>
     );
@@ -87,16 +89,18 @@ export default function QuizPage() {
 
   if (!currentQuestion) {
     return (
-      <div className="min-h-screen bg-white p-6 relative flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <div className="text-center">
-          <h2 className="text-2xl font-semibold">No questions available</h2>
-          <button
-            onClick={() => router.push('/eggspert')}
-            className="mt-4 bg-yellow-400 text-white px-6 py-2 rounded-full hover:bg-yellow-500"
-          >
-            Go Back
-          </button>
+        <div className="flex items-center justify-center h-[calc(100vh-64px)]">
+          <div className="text-center">
+            <h2 className="text-2xl font-semibold">No questions available</h2>
+            <button
+              onClick={() => router.push('/eggspert')}
+              className="mt-4 bg-yellow-400 text-white px-6 py-2 rounded-full hover:bg-yellow-500"
+            >
+              Go Back
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -105,47 +109,48 @@ export default function QuizPage() {
   // Show score summary if all questions are answered
   if (answers.length === totalQuestions) {
     return (
-      <div className="min-h-screen bg-white p-6 relative flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <div className="flex flex-col items-center w-full max-w-3xl px-4 sm:px-6 space-y-8">
-          <Image
-            src={scorePercent >= 70 ? '/cracked-egg.png' : '/fried-egg.png'}
-            alt={scorePercent >= 70 ? 'Cracked Egg' : 'Fried Egg'}
-            width={300}
-            height={300}
-            className="mb-8"
-          />
+        <div className="container mx-auto py-8">
+          <div className="flex flex-col items-center w-full max-w-3xl mx-auto px-4 sm:px-6 space-y-8">
+            <Image
+              src={scorePercent >= 70 ? '/cracked-egg.png' : '/fried-egg.png'}
+              alt={scorePercent >= 70 ? 'Cracked Egg' : 'Fried Egg'}
+              width={300}
+              height={300}
+              className="mb-8"
+            />
 
-          <h2 className="text-4xl font-love mb-4">
-            {scorePercent >= 70 ? 'You Cracked It!' : "You're Fried!"}
-          </h2>
+            <h2 className="text-4xl font-love mb-4">
+              {scorePercent >= 70 ? 'You Cracked It!' : "You're Fried!"}
+            </h2>
 
-          <div className="text-center">
-            <p className="text-2xl font-semibold mb-2">Your Score</p>
-            <p className="text-6xl font-bold text-yellow-500 mb-4">
-              {scorePercent}%
-            </p>
-            <p className="text-gray-600">
-              {score} out of {totalQuestions} questions correct
-            </p>
-          </div>
+            <div className="text-center">
+              <p className="text-2xl font-semibold mb-2">Your Score</p>
+              <p className="text-6xl font-bold text-yellow-500 mb-4">
+                {scorePercent}%
+              </p>
+              <p className="text-gray-600">
+                {score} out of {totalQuestions} questions correct
+              </p>
+            </div>
 
-          <div className="flex flex-col sm:flex-row gap-4 mt-8">
-            <button
-              onClick={handleRetakeTest}
-              className="bg-yellow-400 text-white px-6 py-2 rounded-full hover:bg-yellow-500"
-            >
-              Take Again
-            </button>
-            <button
-              onClick={() => setIsPublishModalOpen(true)}
-              className="bg-green-500 text-white px-6 py-2 rounded-full hover:bg-green-600"
-            >
-              Publish Test
-            </button>
+            <div className="flex flex-col sm:flex-row gap-4 mt-8">
+              <button
+                onClick={handleRetakeTest}
+                className="bg-yellow-400 text-white px-6 py-2 rounded-full hover:bg-yellow-500"
+              >
+                Take Again
+              </button>
+              <button
+                onClick={() => setIsPublishModalOpen(true)}
+                className="bg-green-500 text-white px-6 py-2 rounded-full hover:bg-green-600"
+              >
+                Publish Test
+              </button>
+            </div>
           </div>
         </div>
-
         {isPublishModalOpen && (
           <PublishTestModal
             isOpen={isPublishModalOpen}
@@ -185,60 +190,61 @@ export default function QuizPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white p-6 relative flex items-center justify-center">
+    <div className="min-h-screen bg-gray-50">
       <Navbar />
-
-      <div className="flex flex-col items-center w-full max-w-3xl px-4 sm:px-6 space-y-16">
-        <div className="w-full text-center">
-          <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
-            <div
-              className="bg-yellow-300 h-2.5 rounded-full transition-all duration-300"
-              style={{ width: `${progressPercent}%` }}
-            ></div>
+      <div className="container mx-auto py-8">
+        <div className="flex flex-col items-center w-full max-w-3xl mx-auto px-4 sm:px-6 space-y-8">
+          <div className="w-full text-center">
+            <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
+              <div
+                className="bg-yellow-300 h-2.5 rounded-full transition-all duration-300"
+                style={{ width: `${progressPercent}%` }}
+              ></div>
+            </div>
+            <p className="text-gray-400 text-sm">
+              {currentQuestionIndex + 1}/{totalQuestions}
+            </p>
           </div>
-          <p className="text-gray-400 text-sm">
-            {currentQuestionIndex + 1}/{totalQuestions}
-          </p>
-        </div>
 
-        <div className="w-full">
-          <span className="bg-yellow-100 text-yellow-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
-            Multiple Choice
-          </span>
-          <h2 className="text-2xl font-semibold mt-4">
-            {currentQuestion.question}
-          </h2>
+          <div className="w-full">
+            <span className="bg-yellow-100 text-yellow-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
+              Multiple Choice
+            </span>
+            <h2 className="text-2xl font-semibold mt-4">
+              {currentQuestion.question}
+            </h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
-            {currentQuestion.options.map((option, index) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
+              {currentQuestion.options.map((option, index) => (
+                <button
+                  key={index}
+                  onClick={() => setSelected(index)}
+                  className={`border rounded-xl px-6 py-4 text-left transition ${
+                    selected === index
+                      ? 'bg-yellow-100 border-yellow-400'
+                      : 'bg-gray-100 border-transparent'
+                  }`}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-8">
               <button
-                key={index}
-                onClick={() => setSelected(index)}
-                className={`border rounded-xl px-6 py-4 text-left transition ${
-                  selected === index
-                    ? 'bg-yellow-100 border-yellow-400'
-                    : 'bg-gray-100 border-transparent'
-                }`}
+                onClick={() => router.push('/eggspert')}
+                className="border border-gray-300 rounded-full px-6 py-2 text-gray-600 hover:bg-gray-50 w-full sm:w-auto"
               >
-                {option}
+                Back
               </button>
-            ))}
-          </div>
-
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-8">
-            <button
-              onClick={() => router.push('/eggspert')}
-              className="border border-gray-300 rounded-full px-6 py-2 text-gray-600 hover:bg-gray-50 w-full sm:w-auto"
-            >
-              Back
-            </button>
-            <button
-              onClick={handleCheck}
-              className="bg-yellow-400 text-white px-6 py-2 rounded-full hover:bg-yellow-500 w-full sm:w-auto"
-              disabled={selected === null}
-            >
-              Check
-            </button>
+              <button
+                onClick={handleCheck}
+                className="bg-yellow-400 text-white px-6 py-2 rounded-full hover:bg-yellow-500 w-full sm:w-auto"
+                disabled={selected === null}
+              >
+                Check
+              </button>
+            </div>
           </div>
         </div>
       </div>

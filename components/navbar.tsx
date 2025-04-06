@@ -98,10 +98,7 @@ export default function Navbar() {
             Saved Quizzes
           </Link>
           <button
-            onClick={() => {
-              setOpen(false);
-              handleLogout();
-            }}
+            onClick={handleLogout}
             className="text-left hover:text-yellow-600 focus:outline-none"
           >
             Logout
