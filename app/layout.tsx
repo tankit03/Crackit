@@ -7,6 +7,7 @@ import { Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import Link from "next/link";
 import "./globals.css";
+import Navbar from "@/components/navbar";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -14,8 +15,8 @@ const defaultUrl = process.env.VERCEL_URL
 
 export const metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "Next.js and Supabase Starter Kit",
-  description: "The fastest way to build apps with Next.js and Supabase",
+  title: "Crackit - Test Creation and Sharing",
+  description: "Create, share, and take tests with your peers",
 };
 
 const geistSans = Geist({
@@ -41,13 +42,16 @@ export default function RootLayout({
             <div className="flex-1 w-full flex flex-col gap-20 items-center">
               <nav className="w-full flex justify-center border-b border-b-foreground/10 h-16">
                 <div className="w-full max-w-5xl flex justify-between items-center p-3 px-5 text-sm">
-                  <div className="flex gap-5 items-center font-semibold">
-                    <Link href={"/"}>Next.js Supabase Starter</Link>
-                    <div className="flex items-center gap-2">
-                      <DeployButton />
-                    </div>
+                  <div className="flex gap-5 items-center">
+                    <Link href="/" className="font-bold text-xl">
+                      Crackit
+                    </Link>
+                    <Navbar />
                   </div>
-                  {!hasEnvVars ? <EnvVarWarning /> : <HeaderAuth />}
+                  <div className="flex items-center gap-4">
+                    {!hasEnvVars ? <EnvVarWarning /> : <HeaderAuth />}
+                    <ThemeSwitcher />
+                  </div>
                 </div>
               </nav>
               <div className="flex flex-col gap-20 max-w-5xl p-5">
@@ -66,7 +70,6 @@ export default function RootLayout({
                     Supabase
                   </a>
                 </p>
-                <ThemeSwitcher />
               </footer>
             </div>
           </main>
