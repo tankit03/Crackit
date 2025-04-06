@@ -202,8 +202,75 @@ export default function EggSpertPage() {
             className="w-full min-h-[100px] px-6 py-3 text-sm rounded-xl focus:outline-none resize-none"
             style={{ maxHeight: '400px', overflowY: 'auto' }}
           />
+
+          <div className="flex items-center justify-end gap-2 mt-2">
+            <div className="relative">
+              <select
+                value={numQuestions}
+                onChange={(e) => setNumQuestions(Number(e.target.value))}
+                className="p-2 rounded-full border border-gray-300 bg-white text-sm"
+              >
+                <option value="5">5 Questions</option>
+                <option value="10">10 Questions</option>
+                <option value="15">15 Questions</option>
+                <option value="20">20 Questions</option>
+              </select>
+            </div>
+
+            <div className="relative">
+              <input
+                type="file"
+                id="file-upload"
+                className="hidden"
+                onChange={handleFileUpload}
+                accept=".pdf,.docx,.pptx"
+                disabled={isLoading}
+              />
+              <label
+                htmlFor="file-upload"
+                className="cursor-pointer p-2 rounded-full hover:bg-gray-100 transition-colors inline-flex items-center justify-center"
+              >
+                {isLoading ? (
+                  <Loader2 className="w-6 h-6 text-[#F2C76E] animate-spin" />
+                ) : (
+                  <Paperclip className="w-6 h-6 text-[#F2C76E]" />
+                )}
+              </label>
+            </div>
+
+            <button
+              onClick={handleGenerateTest}
+              disabled={isGeneratingTest || isLoading}
+              className="p-2 rounded-full hover:bg-gray-100 transition-colors inline-flex items-center justify-center"
+            >
+              {isGeneratingTest ? (
+                <Loader2 className="w-6 h-6 text-[#F2C76E] animate-spin" />
+              ) : (
+                <Send className="w-6 h-6 text-[#F2C76E]" />
+              )}
+            </button>
+          </div>
         </div>
+
+        {error && (
+          <div className="mt-4 bg-red-50 text-red-500 p-4 rounded-lg">
+            {error}
+          </div>
+        )}
       </div>
+
+      <Toaster />
+      {isPublishModalOpen && testResult && (
+        <PublishTestModal
+          isOpen={isPublishModalOpen}
+          onClose={() => setIsPublishModalOpen(false)}
+          onPublish={handlePublishTest}
+          testData={{
+            questions: testResult.questions,
+            extractedText: extractedText || '',
+          }}
+        />
+      )}
     </div>
   );
 }
