@@ -16,7 +16,7 @@ export default function Navbar() {
           <Image
             src="/CrackItLogo.png" // your logo file
             alt="CrackIt logo"
-            width={50
+            width={45
             }             // adjust as needed
             height={20}
           />
