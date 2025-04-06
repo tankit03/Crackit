@@ -16,8 +16,8 @@ export default async function SignUp(props: { searchParams: Promise<Message> }) 
           <Image
             src="/sign-up-logo.png"
             alt="CrackIt Logo"
-            width={900}
-            height={150}
+            width={550}
+            height={100}
           />
         </div>
         <h1 className="text-[4.5rem] text-center font-love">CrackIt</h1>
@@ -93,7 +93,7 @@ export default async function SignUp(props: { searchParams: Promise<Message> }) 
 
         <p className="text-sm text-gray-600 mt-4 text-center">
           Already have an account?{' '}
-          <a href="#" className="text-[#50BFDE] hover:underline">
+          <a href="/sign-in" className="text-[#50BFDE] hover:underline">
             Sign in
           </a>
         </p>

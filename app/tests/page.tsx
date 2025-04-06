@@ -21,6 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useToast } from '@/components/ui/use-toast';
 
 interface Test {
   id: number;
@@ -74,6 +76,10 @@ export default function TestsPage() {
   const supabase = createClient();
   const [userName, setUserName] = useState<string>('');
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
+  const [showMyTests, setShowMyTests] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [savedTestIds, setSavedTestIds] = useState<Set<number>>(new Set());
+  const { toast } = useToast();
 
   // Fetch universities
   const fetchUniversities = async () => {
@@ -145,7 +151,6 @@ export default function TestsPage() {
 
       // Build filter conditions
       if (searchTerm) {
-        // Search across multiple fields using separate conditions
         query = query.or(`name.ilike.%${searchTerm}%`);
       }
 
@@ -160,6 +165,11 @@ export default function TestsPage() {
 
       if (selectedTag && selectedTag !== 'all') {
         query = query.like('tags', `%${selectedTag}%`);
+      }
+
+      // Add my tests filter
+      if (showMyTests && currentUserId) {
+        query = query.eq('user_id', currentUserId);
       }
 
       // Apply sorting
@@ -222,8 +232,15 @@ export default function TestsPage() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (session?.user?.user_metadata?.full_name) {
-        setUserName(session.user.user_metadata.full_name);
+      if (session?.user) {
+        setCurrentUserId(session.user.id);
+        setUserName(
+          session.user.user_metadata?.display_name ||
+            session.user.email?.split('@')[0] ||
+            'User'
+        );
+        // Fetch saved tests after setting currentUserId
+        await fetchSavedTests();
       }
     };
 
@@ -234,6 +251,106 @@ export default function TestsPage() {
     searchTests();
   }, []);
 
+  // Update saved tests when currentUserId changes
+  useEffect(() => {
+    if (currentUserId) {
+      fetchSavedTests();
+    }
+  }, [currentUserId]);
+
+  // Fetch saved tests
+  const fetchSavedTests = async () => {
+    if (!currentUserId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('user-saved-tests')
+        .select('test_id')
+        .eq('user_id', currentUserId);
+
+      if (error) {
+        console.error('Error fetching saved tests:', error);
+        return;
+      }
+
+      const savedIds = new Set(data?.map((item) => item.test_id) || []);
+      setSavedTestIds(savedIds);
+    } catch (err) {
+      console.error('Error in fetchSavedTests:', err);
+    }
+  };
+
+  // Save/unsave test
+  const toggleSaveTest = async (testId: number) => {
+    if (!currentUserId) {
+      toast({
+        title: 'Error',
+        description: 'You must be logged in to save tests',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const isSaved = savedTestIds.has(testId);
+
+      if (isSaved) {
+        // Unsave test
+        const { error } = await supabase
+          .from('user-saved-tests')
+          .delete()
+          .eq('user_id', currentUserId)
+          .eq('test_id', testId);
+
+        if (error) throw error;
+
+        setSavedTestIds((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(testId);
+          return newSet;
+        });
+
+        toast({
+          title: 'Success',
+          description: 'Test removed from saved tests',
+          variant: 'default',
+        });
+      } else {
+        // Save test
+        const { error } = await supabase.from('user-saved-tests').insert([
+          {
+            user_id: currentUserId,
+            test_id: testId,
+          },
+        ]);
+
+        if (error) throw error;
+
+        setSavedTestIds((prev) => {
+          const newSet = new Set(prev);
+          newSet.add(testId);
+          return newSet;
+        });
+
+        toast({
+          title: 'Success',
+          description: 'Test saved successfully',
+          variant: 'default',
+        });
+      }
+
+      // Refresh saved tests after toggling
+      await fetchSavedTests();
+    } catch (err) {
+      console.error('Error in toggleSaveTest:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to save/unsave test. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   // Search when filters change
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -241,7 +358,14 @@ export default function TestsPage() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchTerm, selectedUniversity, selectedClass, selectedTag, sortBy]);
+  }, [
+    searchTerm,
+    selectedUniversity,
+    selectedClass,
+    selectedTag,
+    sortBy,
+    showMyTests,
+  ]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -252,7 +376,20 @@ export default function TestsPage() {
   };
 
   const FiltersContent = () => (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      <div className="flex items-center space-x-2">
+        <Checkbox
+          id="my-tests"
+          checked={showMyTests}
+          onCheckedChange={(checked) => setShowMyTests(checked as boolean)}
+        />
+        <label
+          htmlFor="my-tests"
+          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        >
+          My Tests
+        </label>
+      </div>
       <div>
         <h3 className="text-sm font-medium text-gray-600 mb-2">Topic</h3>
         <Select value={selectedTag} onValueChange={setSelectedTag}>
@@ -449,9 +586,12 @@ export default function TestsPage() {
                         className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-[#F5E6D0] transition-colors"
                         onClick={(e) => {
                           e.preventDefault();
+                          toggleSaveTest(test.id);
                         }}
                       >
-                        <BookmarkIcon className="h-5 w-5 text-[#F2C76E]" />
+                        <BookmarkIcon
+                          className={`h-5 w-5 ${savedTestIds.has(test.id) ? 'text-[#F2C76E] fill-[#F2C76E]' : 'text-[#F2C76E]'}`}
+                        />
                       </button>
                     </Card>
                   </Link>

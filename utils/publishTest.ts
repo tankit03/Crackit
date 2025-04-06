@@ -64,10 +64,13 @@ export async function publishTest(data: PublishTestData) {
       .select('id')
       .eq('name', data.className)
       .eq('university_id', universityId)
-      .single();
+      .maybeSingle();
 
     if (classError) {
-      console.error('Error finding class:', classError);
+      throw new Error(`Error finding class: ${classError.message}`);
+    }
+
+    if (!classData) {
       // Create class if it doesn't exist
       const { data: newClass, error: createClassError } = await supabase
         .from('classes')

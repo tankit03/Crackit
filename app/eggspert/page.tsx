@@ -1,34 +1,188 @@
-"use client";
+'use client';
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import Image from "next/image";
-import { Send, Paperclip } from "lucide-react";
-import Navbar from "@/components/navbar";
+import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import Image from 'next/image';
+import { Send, Paperclip, Loader2 } from 'lucide-react';
+import Navbar from '@/components/navbar';
+import { Button } from '@/components/ui/button';
+import { createClient } from '@/utils/supabase/client';
+import { Session } from '@supabase/supabase-js';
+import { generateTest } from '@/utils/testGenerator';
+import { PublishTestModal } from '@/components/PublishTestModal';
+import { publishTest, PublishTestData } from '@/utils/publishTest';
+import { useToast } from '@/components/ui/use-toast';
+import { Toaster } from '@/components/ui/toaster';
+import { convertFileToText } from '@/utils/fileConverter';
+
+interface Question {
+  question: string;
+  options: string[];
+  correctAnswer: number;
+}
+
+interface TestResult {
+  questions: Question[];
+}
 
 export default function EggSpertPage() {
-  const [input, setInput] = useState("");
   const router = useRouter();
+  const { toast } = useToast();
+  const [session, setSession] = useState<Session | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [extractedText, setExtractedText] = useState<string | null>(null);
+  const [isGeneratingTest, setIsGeneratingTest] = useState(false);
+  const [testResult, setTestResult] = useState<TestResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
+  const supabase = createClient();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // You could save notes to state, session, or API here
-    router.push("/quiz");
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        const {
+          data: { session: currentSession },
+        } = await supabase.auth.getSession();
+        if (!currentSession) {
+          router.push('/sign-in');
+          return;
+        }
+        setSession(currentSession);
+      } catch (error) {
+        console.error('Auth error:', error);
+        router.push('/sign-in');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeAuth();
+  }, [router]);
+
+  const handleTextExtracted = (text: string) => {
+    setExtractedText(text);
+    setTestResult(null);
+    setError(null);
+  };
+
+  const handleGenerateTest = async () => {
+    if (!extractedText) {
+      toast({
+        title: 'Error',
+        description: 'Please provide some text or upload a document first',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsGeneratingTest(true);
+    setError(null);
+
+    try {
+      const result = await generateTest(extractedText);
+      setTestResult(result);
+
+      // Store test data in session storage
+      const testData = {
+        questions: result.questions,
+        extractedText: extractedText,
+      };
+      sessionStorage.setItem('currentTest', JSON.stringify(testData));
+
+      // Navigate to quiz page
+      router.push('/quiz');
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'An error occurred while generating the test'
+      );
+      toast({
+        title: 'Error',
+        description: 'Failed to generate test. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsGeneratingTest(false);
+    }
+  };
+
+  const handlePublishTest = async (data: PublishTestData) => {
+    if (!session?.user) {
+      toast({
+        title: 'Error',
+        description: 'You must be logged in to publish a test',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      await publishTest(data);
+      setIsPublishModalOpen(false);
+      toast({
+        title: 'Success',
+        description: 'Test published successfully!',
+        variant: 'default',
+      });
+    } catch (error) {
+      console.error('Error in handlePublishTest:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to publish test. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsLoading(true);
+      const text = await convertFileToText(file);
+      setExtractedText(text);
+      setError(null);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Failed to extract text from file'
+      );
+      toast({
+        title: 'Error',
+        description: 'Failed to extract text from file. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-start bg-white p-6 text-center pt-8"
-    style={{ backgroundImage: "url('/publish-bg.png')" }}>
-        <Navbar/>
-        <Image
-        src="/black-star.png" // make sure this image is in your public folder
+    <div
+      className="min-h-screen flex flex-col items-center justify-start bg-white p-6 text-center pt-8 relative"
+      style={{
+        backgroundImage: "url('/publish-bg.png')",
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed',
+      }}
+    >
+      <div className="absolute inset-0 bg-white/50 -z-10" />
+
+      <Navbar />
+      <Image
+        src="/black-star.png"
         alt="Sparkle"
         width={35}
         height={35}
-        className="mb-2 pb-10 mt-[7rem]" 
+        className="mb-2 pb-10 mt-[7rem]"
       />
       <h1 className="text-4xl font-love mb-2">Ask the Egg-spert</h1>
-      <p className="text-gray-700 mb-10 text-lg">Type your notes or submit a pdf</p>
+      <p className="text-gray-700 mb-10 text-lg">
+        Upload your study materials and I'll create a quiz for you!
+      </p>
 
       <Image
         src="/egg.png"
@@ -38,30 +192,71 @@ export default function EggSpertPage() {
         className="mb-10"
       />
 
-    <form
-          onSubmit={handleSubmit}
-          className="w-full max-w-2xl flex items-center bg-white rounded-xl shadow-sm border p-2 mt-[3rem]"
-        >
-          <input
-            type="text"
-            placeholder="Provide me with your notes"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            className="flex-grow px-6 py-3 text-sm rounded-l-xl focus:outline-none"
+      <div className="w-full max-w-2xl">
+        <div className="relative bg-white rounded-xl shadow-sm border p-2">
+          <textarea
+            value={extractedText || ''}
+            onChange={(e) => setExtractedText(e.target.value)}
+            placeholder="Type or paste your notes here..."
+            className="w-full min-h-[100px] px-6 py-3 text-sm rounded-xl focus:outline-none resize-none"
+            style={{ maxHeight: '400px', overflowY: 'auto' }}
           />
-          <button
-            type="button"
-            className="text-sky-400 hover:text-sky-500 px-3"
-          >
-            <Paperclip className="w-6 h-6" />
-          </button>
-          <button
-            type="submit"
-            className="text-sky-400 hover:text-sky-500 px-3"
-          >
-            <Send className="w-6 h-6" />
-          </button>
-        </form>
+
+          <div className="flex items-center justify-end gap-2 mt-2">
+            <div className="relative">
+              <input
+                type="file"
+                id="file-upload"
+                className="hidden"
+                onChange={handleFileUpload}
+                accept=".pdf,.docx,.pptx"
+                disabled={isLoading}
+              />
+              <label
+                htmlFor="file-upload"
+                className="cursor-pointer p-2 rounded-full hover:bg-gray-100 transition-colors inline-flex items-center justify-center"
+              >
+                {isLoading ? (
+                  <Loader2 className="w-6 h-6 text-[#F2C76E] animate-spin" />
+                ) : (
+                  <Paperclip className="w-6 h-6 text-[#F2C76E]" />
+                )}
+              </label>
+            </div>
+
+            <button
+              onClick={handleGenerateTest}
+              disabled={isGeneratingTest || isLoading}
+              className="p-2 rounded-full hover:bg-gray-100 transition-colors inline-flex items-center justify-center"
+            >
+              {isGeneratingTest ? (
+                <Loader2 className="w-6 h-6 text-[#F2C76E] animate-spin" />
+              ) : (
+                <Send className="w-6 h-6 text-[#F2C76E]" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {error && (
+          <div className="mt-4 bg-red-50 text-red-500 p-4 rounded-lg">
+            {error}
+          </div>
+        )}
+      </div>
+
+      <Toaster />
+      {isPublishModalOpen && testResult && (
+        <PublishTestModal
+          isOpen={isPublishModalOpen}
+          onClose={() => setIsPublishModalOpen(false)}
+          onPublish={handlePublishTest}
+          testData={{
+            questions: testResult.questions,
+            extractedText: extractedText || '',
+          }}
+        />
+      )}
     </div>
   );
 }
