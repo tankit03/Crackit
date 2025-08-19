@@ -1,104 +1,85 @@
-<a href="https://demo-nextjs-with-supabase.vercel.app/">
-  <img alt="Next.js and Supabase Starter Kit - the fastest way to build apps with Next.js and Supabase" src="https://demo-nextjs-with-supabase.vercel.app/opengraph-image.png">
-  <h1 align="center">Next.js and Supabase Starter Kit</h1>
-</a>
+# Crackit
 
-<p align="center">
- The fastest way to build apps with Next.js and Supabase
-</p>
-
-<p align="center">
-  <a href="#features"><strong>Features</strong></a> ·
-  <a href="#demo"><strong>Demo</strong></a> ·
-  <a href="#deploy-to-vercel"><strong>Deploy to Vercel</strong></a> ·
-  <a href="#clone-and-run-locally"><strong>Clone and run locally</strong></a> ·
-  <a href="#feedback-and-issues"><strong>Feedback and issues</strong></a>
-  <a href="#more-supabase-examples"><strong>More Examples</strong></a>
-</p>
-<br/>
+Crackit is a web application that allows users to create, share, and take quizzes. It is built with Next.js, Supabase, and Tailwind CSS.
 
 ## Features
 
-- Works across the entire [Next.js](https://nextjs.org) stack
-  - App Router
-  - Pages Router
-  - Middleware
-  - Client
-  - Server
-  - It just works!
-- supabase-ssr. A package to configure Supabase Auth to use cookies
-- Styling with [Tailwind CSS](https://tailwindcss.com)
-- Components with [shadcn/ui](https://ui.shadcn.com/)
-- Optional deployment with [Supabase Vercel Integration and Vercel deploy](#deploy-your-own)
-  - Environment variables automatically assigned to Vercel project
+- **User Authentication:** Users can sign up and sign in to their accounts.
+- **Create Quizzes:** Users can create quizzes by providing a topic or by uploading a file.
+- **Take Quizzes:** Users can take quizzes created by other users.
+- **Save and Share Quizzes:** Users can save quizzes and share them with others.
+- **Review and Rate Quizzes:** Users can review and rate quizzes.
 
-## Demo
+## Installation
 
-You can view a fully working demo at [demo-nextjs-with-supabase.vercel.app](https://demo-nextjs-with-supabase.vercel.app/).
+1.  **Clone the repository:**
 
-## Deploy to Vercel
+    ```bash
+    https://github.com/tankit03/Crackit.git
+    ```
 
-Vercel deployment will guide you through creating a Supabase account and project.
+2.  **Install dependencies:**
 
-After installation of the Supabase integration, all relevant environment variables will be assigned to the project so the deployment is fully functioning.
+    ```bash
+    npm install
+    ```
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&project-name=nextjs-with-supabase&repository-name=nextjs-with-supabase&demo-title=nextjs-with-supabase&demo-description=This+starter+configures+Supabase+Auth+to+use+cookies%2C+making+the+user%27s+session+available+throughout+the+entire+Next.js+app+-+Client+Components%2C+Server+Components%2C+Route+Handlers%2C+Server+Actions+and+Middleware.&demo-url=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2F&external-id=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&demo-image=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2Fopengraph-image.png)
+3.  **Set up environment variables:**
 
-The above will also clone the Starter kit to your GitHub, you can clone that locally and develop locally.
+    Create a `.env.local` file in the root directory and add the following environment variables:
 
-If you wish to just develop locally and not deploy to Vercel, [follow the steps below](#clone-and-run-locally).
+    ```
+    NEXT_PUBLIC_SUPABASE_URL=<your-supabase-url>
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-supabase-anon-key>
+    ```
 
-## Clone and run locally
+    You can get these values from your Supabase project settings.
 
-1. You'll first need a Supabase project which can be made [via the Supabase dashboard](https://database.new)
+## Getting Started
 
-2. Create a Next.js app using the Supabase Starter template npx command
+To run the development server, use the following command:
 
-   ```bash
-   npx create-next-app --example with-supabase with-supabase-app
-   ```
+```bash
+npm run dev
+```
 
-   ```bash
-   yarn create next-app --example with-supabase with-supabase-app
-   ```
+This will start the development server on `http://localhost:3000`.
 
-   ```bash
-   pnpm create next-app --example with-supabase with-supabase-app
-   ```
+## Building for Production
 
-3. Use `cd` to change into the app's directory
+To build the application for production, use the following command:
 
-   ```bash
-   cd with-supabase-app
-   ```
+```bash
+npm run build
+```
 
-4. Rename `.env.example` to `.env.local` and update the following:
+This will create a production-ready build in the `.next` directory.
 
-   ```
-   NEXT_PUBLIC_SUPABASE_URL=[INSERT SUPABASE PROJECT URL]
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=[INSERT SUPABASE PROJECT API ANON KEY]
-   ```
+## Scripts
 
-   Both `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` can be found in [your Supabase project's API settings](https://app.supabase.com/project/_/settings/api)
+- `npm run dev`: Starts the development server.
+- `npm run build`: Builds the application for production.
+- `npm run start`: Starts the production server.
 
-5. You can now run the Next.js local development server:
+## Dependencies
 
-   ```bash
-   npm run dev
-   ```
+- **Next.js:** A React framework for building server-side rendered and static web applications.
+- **Supabase:** An open-source Firebase alternative for building secure and scalable applications.
+- **Tailwind CSS:** A utility-first CSS framework for rapidly building custom user interfaces.
+- **Radix UI:** A collection of accessible and unstyled UI components.
+- **Lucide React:** A library of beautiful and consistent icons.
+- **Geist:** A modern and minimalist font.
+- **Next Themes:** A library for adding dark mode to your Next.js application.
+- **Sonner:** A toast library for React.
+- **date-fns:** A modern JavaScript date utility library.
+- **react-confetti:** A React component for rendering confetti.
+- **react-use:** A collection of useful React hooks.
+- **mammoth:** A library for converting `.docx` files to HTML.
+- **jszip:** A library for creating, reading, and editing `.zip` files.
+- **xmldom:** A JavaScript implementation of the W3C DOM.
+- **@google/generative-ai:** Google's generative AI SDK.
+- **convertapi:** A file conversion API.
 
-   The starter kit should now be running on [localhost:3000](http://localhost:3000/).
+## Contributing
 
-6. This template comes with the default shadcn/ui style initialized. If you instead want other ui.shadcn styles, delete `components.json` and [re-install shadcn/ui](https://ui.shadcn.com/docs/installation/next)
-
-> Check out [the docs for Local Development](https://supabase.com/docs/guides/getting-started/local-development) to also run Supabase locally.
-
-## Feedback and issues
-
-Please file feedback and issues over on the [Supabase GitHub org](https://github.com/supabase/supabase/issues/new/choose).
-
-## More Supabase examples
-
-- [Next.js Subscription Payments Starter](https://github.com/vercel/nextjs-subscription-payments)
-- [Cookie-based Auth and the Next.js 13 App Router (free course)](https://youtube.com/playlist?list=PL5S4mPUpp4OtMhpnp93EFSo42iQ40XjbF)
-- [Supabase Auth and the Next.js App Router](https://github.com/supabase/supabase/tree/master/examples/auth/nextjs)
+Contributions are welcome! Please open an issue or submit a pull request if you have any suggestions or improvements.
